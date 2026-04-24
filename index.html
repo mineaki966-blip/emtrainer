@@ -791,8 +791,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
       <!-- Rhythm -->
       <div style="background:#050d0a;border-top:1px solid #0f3020;padding:10px 16px;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:10px;color:#3a7a5a;letter-spacing:0.08em;">心電図</span>
-        <span style="font-size:13px;font-weight:700;color:#00ff88;" id="mv_ecg">--</span>
+        <span style="font-size:10px;color:#3a7a5a;letter-spacing:0.08em;display:none;">心電図</span>
+        <span style="font-size:13px;font-weight:700;color:#00ff88;display:none;" id="mv_ecg">--</span>
         <span style="margin-left:auto;font-size:10px;color:#3a7a5a;">GCS</span>
         <span style="font-size:13px;font-weight:700;color:#ffd700;" id="mv_gcs">--</span>
       </div>
@@ -836,9 +836,19 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="aon-orb" id="aonOrb">🎙️</div>
     <div class="aon-info">
       <div class="aon-st" id="aonSt">常時待受 オフ</div>
-      <div class="aon-tx" id="aonTx">「天の声、〇〇〇」と話しかけると自動応答します</div>
+      <div class="aon-tx" id="aonTx">待受ONで、話しかけるだけで自動応答します</div>
     </div>
     <button class="aon-toggle" id="aonToggle" onclick="toggleAlwaysOn()">待受 OFF</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;padding:6px 12px;margin-bottom:10px;font-size:11px;color:var(--dim);flex-wrap:wrap;">
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;margin:0;">
+      <input type="checkbox" id="noWakeMode" checked style="width:auto;margin:0;" onchange="localStorage.setItem('emNoWake', this.checked?'1':'0')">
+      ウェイクワード不要（話しかけたら即応答）
+    </label>
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;margin:0;">
+      <input type="checkbox" id="autoRoleSwitch" checked style="width:auto;margin:0;" onchange="localStorage.setItem('emAutoRole', this.checked?'1':'0')">
+      キーワードで役割を自動切替
+    </label>
   </div>
 
   <!-- Wake word settings -->
@@ -982,6 +992,13 @@ window.onload = () => {
     if(window.speechSynthesis) window.speechSynthesis.getVoices();
     document.removeEventListener('touchstart', unlockAudio);
   }, {once:true});
+  // 待受モード設定の復元
+  try{
+    const nw = document.getElementById('noWakeMode');
+    const ar = document.getElementById('autoRoleSwitch');
+    if(nw) nw.checked = (localStorage.getItem('emNoWake') !== '0');
+    if(ar) ar.checked = (localStorage.getItem('emAutoRole') !== '0');
+  }catch(_){}
   const rs=document.getElementById('s_disprate');
   if(rs) rs.addEventListener('input',()=>{ document.getElementById('s_disprateVal').textContent=rs.value; });
 };
@@ -1434,7 +1451,8 @@ async function updateMonitorVitals(){
     else if(reply.includes('徐脈')) monitorData.ecg='徐脈';
     else if(reply.includes('洞')) monitorData.ecg='洞調律';
     renderMonitorValues();
-    speakQueued(reply);
+    // モニター更新時は音声応答しない（ユーザー要望）
+    toast('📟 モニター値を更新しました');
   }catch(e){
     removeThinking(tid);
     addSys('エラー: '+e.message);
@@ -2162,7 +2180,9 @@ function aonLoop(){
 
     aonRecog.onstart = ()=>{
       setAonState('listening');
-      setAonText('待受中... 「天の声、〇〇」と話してください');
+      const nw = document.getElementById('noWakeMode');
+      if(nw && nw.checked) setAonText('待受中... 話しかけてください（ウェイクワード不要）');
+      else setAonText('待受中... 「天の声、〇〇」と話してください');
     };
 
     aonRecog.onresult = e=>{
@@ -2174,25 +2194,38 @@ function aonLoop(){
       if(interim) setAonText('🎤 ' + interim);
       if(final){
         setAonText(final);
-        const matched = wakeWords.find(w => final.includes(w));
+        const trimmed = final.trim();
+        const noWake = document.getElementById('noWakeMode');
+        const autoRole = document.getElementById('autoRoleSwitch');
+        const noWakeOn = noWake ? noWake.checked : true;
+        const autoRoleOn = autoRole ? autoRole.checked : true;
+
+        const matched = wakeWords.find(w => trimmed.includes(w));
+        let query = '';
         if(matched){
-          let query = final;
+          query = trimmed;
           wakeWords.forEach(w=>{
             query = query.replace(new RegExp(w+'[、,，。\\s　]*','g'),'').trim();
           });
-          if(query){
-            setAonState('wake-detected');
-            setAonText('✅ 検知: "' + query + '"');
+        } else if(noWakeOn){
+          // ウェイクワード不要モード：AI応答中でない & 十分な長さがあれば送る
+          if(trimmed.length < 3) { return; }  // 短すぎる独り言は無視
+          if(isSpeaking) { return; }          // AIの音声再生中は無視（ハウリング防止）
+          query = trimmed;
+        }
+        if(query){
+          setAonState('wake-detected');
+          setAonText('✅ 送信: "' + query + '"');
+          if(autoRoleOn){
             const detectedRole = detectRoleFromText(query);
             if(detectedRole && detectedRole !== currentRole){
               selRole(detectedRole);
               addSys('🎯 役割を自動切換：' + roleLabels[detectedRole]);
             }
-            // 音声認識コールバック内でも音声ロックを解除してからsend
-            unlockAudio();
-            document.getElementById('txtIn').value = query;
-            setTimeout(()=>{ send(); }, 200);
           }
+          unlockAudio();
+          document.getElementById('txtIn').value = query;
+          setTimeout(()=>{ send(); }, 200);
         }
       }
     };
@@ -2300,17 +2333,76 @@ function stopRec(){
 // TTS
 // ============================================================
 
+// ============ TTS用テキストクリーナー（Markdown記号除去） ============
+function cleanForTTS(text){
+  if(!text) return '';
+  let t = String(text);
+  t = t.replace(/```[\s\S]*?```/g, '');           // コードブロック
+  t = t.replace(/`([^`]+)`/g, '$1');                // インラインコード
+  t = t.replace(/!\[[^\]]*\]\([^)]*\)/g, '');  // 画像
+  t = t.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1'); // リンク
+  t = t.replace(/\*\*\*([^*]+)\*\*\*/g, '$1'); // ***bold+italic***
+  t = t.replace(/\*\*([^*]+)\*\*/g, '$1');      // **bold**
+  t = t.replace(/\*([^*\n]+)\*/g, '$1');         // *italic*
+  t = t.replace(/__([^_]+)__/g, '$1');
+  t = t.replace(/(^|[\s(])_([^_]+)_(?=[\s).!?、。]|$)/g, '$1$2');
+  t = t.replace(/~~([^~]+)~~/g, '$1');
+  t = t.replace(/^\s{0,3}#{1,6}\s+/gm, '');       // 見出し
+  t = t.replace(/^\s*[>]+\s?/gm, '');             // 引用
+  t = t.replace(/^\s*[-*+]\s+/gm, '');            // 箇条書き
+  t = t.replace(/^\s*\d+[.)]\s+/gm, '');         // 番号付きリスト
+  t = t.replace(/[\*_~`#>]/g, '');                 // 取りこぼし記号
+  t = t.replace(/\n{3,}/g, '\n\n');              // 連続改行整理
+  return t.trim();
+}
+
+// ============ 役割別の声色プリセット ============
+const VOICE_PRESETS = {
+  patient:  { rate:0.95, pitch:0.9,  preferGender:'male',   maxLen:400 },
+  family:   { rate:1.0,  pitch:1.15, preferGender:'female', maxLen:400 },
+  vital:    { rate:1.1,  pitch:1.0,  preferGender:'female', maxLen:500 },
+  response: { rate:1.05, pitch:1.0,  preferGender:'male',   maxLen:400 },
+  hospital: { rate:1.0,  pitch:0.95, preferGender:'male',   maxLen:400 },
+  doctor:   { rate:1.0,  pitch:1.0,  preferGender:'male',   maxLen:500 },
+  _default: { rate:1.05, pitch:1.0,  preferGender:null,     maxLen:500 }
+};
+
+function pickVoiceForRole(voices, role){
+  const ja = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('ja'));
+  if(ja.length === 0) return null;
+  const preset = VOICE_PRESETS[role] || VOICE_PRESETS._default;
+  // 名前からgenderを雑推定（Windows/Chromeの一般的な日本語音声）
+  const isFemale = v => /female|woman|haruka|nanami|ayumi|sayaka|mizuki|miyuki|kyoko/i.test(v.name);
+  const isMale   = v => /male|otoya|ichiro|keita|takumi/i.test(v.name);
+  if(preset.preferGender === 'female'){
+    const f = ja.find(isFemale);
+    if(f) return f;
+  }
+  if(preset.preferGender === 'male'){
+    const m = ja.find(isMale);
+    if(m) return m;
+  }
+  // 役割ごとに異なる声を固定割当（インデックスで分散）
+  const roleIdx = {patient:0, family:1, vital:2, response:3, hospital:4, doctor:5};
+  const idx = (roleIdx[role] !== undefined) ? roleIdx[role] % ja.length : 0;
+  return ja[idx] || ja[0];
+}
+
 // Android向け：キューを使って非同期後でも再生できるようにする
-function speakQueued(text){
+function speakQueued(text, role){
   if(!window.speechSynthesis) return;
   try{
-    // 既存キューをクリアせず、続けてキューに積む
+    role = role || currentRole;
+    const preset = VOICE_PRESETS[role] || VOICE_PRESETS._default;
+    const clean = cleanForTTS(text);
+    if(!clean) return;
     const voices = window.speechSynthesis.getVoices();
-    const u = new SpeechSynthesisUtterance(text.substring(0,500));
+    const u = new SpeechSynthesisUtterance(clean.substring(0,preset.maxLen));
     u.lang  = 'ja-JP';
-    u.rate  = 1.05;
-    const ja = voices.find(v=>v.lang && v.lang.startsWith('ja'));
-    if(ja) u.voice = ja;
+    u.rate  = preset.rate;
+    u.pitch = preset.pitch;
+    const v = pickVoiceForRole(voices, role);
+    if(v) u.voice = v;
     u.onstart = ()=>{ isSpeaking=true; const b=document.getElementById('speakBar'); if(b) b.classList.add('on'); };
     u.onend   = ()=>{ isSpeaking=false; const b=document.getElementById('speakBar'); if(b) b.classList.remove('on'); };
     u.onerror = ()=>{ isSpeaking=false; const b=document.getElementById('speakBar'); if(b) b.classList.remove('on'); };
@@ -2318,25 +2410,29 @@ function speakQueued(text){
   }catch(e){ console.warn('speakQueued error:', e); }
 }
 
-function speak(text){
+function speak(text, role){
   if(!window.speechSynthesis) return;
   unlockAudio();
-  _doSpeak(text, 0);
+  _doSpeak(text, 0, role || currentRole);
 }
 
-function _doSpeak(text, attempt){
+function _doSpeak(text, attempt, role){
   try{
     window.speechSynthesis.cancel();
     const voices = window.speechSynthesis.getVoices();
     if(voices.length === 0 && attempt < 4){
-      setTimeout(()=>_doSpeak(text, attempt+1), 300);
+      setTimeout(()=>_doSpeak(text, attempt+1, role), 300);
       return;
     }
-    const u = new SpeechSynthesisUtterance(text.substring(0,500));
+    const preset = VOICE_PRESETS[role] || VOICE_PRESETS._default;
+    const clean = cleanForTTS(text);
+    if(!clean) return;
+    const u = new SpeechSynthesisUtterance(clean.substring(0,preset.maxLen));
     u.lang  = 'ja-JP';
-    u.rate  = 1.05;
-    const ja = voices.find(v=>v.lang && v.lang.startsWith('ja'));
-    if(ja) u.voice = ja;
+    u.rate  = preset.rate;
+    u.pitch = preset.pitch;
+    const v = pickVoiceForRole(voices, role);
+    if(v) u.voice = v;
     u.onstart = ()=>{ isSpeaking=true; const b=document.getElementById('speakBar'); if(b) b.classList.add('on'); };
     u.onend   = ()=>{ isSpeaking=false; const b=document.getElementById('speakBar'); if(b) b.classList.remove('on'); };
     u.onerror = ()=>{ isSpeaking=false; const b=document.getElementById('speakBar'); if(b) b.classList.remove('on'); };
