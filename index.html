@@ -569,12 +569,30 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <div class="api-bar" style="flex-wrap:wrap;gap:8px;">
   <span style="font-size:12px;color:var(--dim);white-space:nowrap;">🔑 AI エンジン</span>
   <select id="aiProvider" onchange="onProviderChange()" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;padding:6px 8px;outline:none;flex-shrink:0;">
-    <option value="gemini">🟦 Gemini（Google）</option>
+    <option value="gemini">🟦 Gemini（Google / 軽量フォールバック有）</option>
+    <option value="groq">⚡ Groq（無料・超高速・推奨）</option>
+    <option value="openai">🟩 OpenAI（ChatGPT）</option>
     <option value="anthropic">🟧 Claude（Anthropic）</option>
   </select>
   <input type="password" id="apiIn" placeholder="AIza... (Gemini APIキー)" style="flex:1;min-width:160px;">
   <button class="btn btn-cyan btn-sm" onclick="saveKey()">保存</button>
   <span class="api-status" id="apiSt">未設定</span>
+</div>
+<div class="api-bar" style="flex-wrap:wrap;gap:8px;margin-top:-6px;padding:8px 14px;">
+  <span style="font-size:11px;color:var(--dim);">🔧 診断:</span>
+  <button class="btn btn-ghost btn-sm" onclick="testTTS()">🔊 読み上げテスト</button>
+  <button class="btn btn-ghost btn-sm" onclick="testMic()">🎤 マイクテスト</button>
+  <button class="btn btn-ghost btn-sm" onclick="testAPI()">🤖 API応答テスト</button>
+  <label style="display:flex;align-items:center;gap:4px;margin:0;font-size:11px;color:var(--dim);cursor:pointer;">
+    <input type="checkbox" id="autoFallback" checked style="width:auto;margin:0;"> キー切れ時は他AIへ自動切替
+  </label>
+</div>
+<div id="diagPanel" style="display:none;background:var(--s1);border:1px solid var(--cyan);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:12px;line-height:1.7;max-height:220px;overflow:auto;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+    <span style="color:var(--cyan);font-weight:700;">🔍 診断結果</span>
+    <button onclick="clearDiag()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:11px;">✕ 閉じる</button>
+  </div>
+  <div id="diagLog"></div>
 </div>
 
 <!-- PHASE BAR -->
@@ -728,6 +746,64 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   <div class="timer-bar">
     <span class="t-label">経過時間</span>
     <span id="timerDisplay">00:00</span>
+    <button class="btn btn-sm" id="monitorBtn" onclick="showMonitor()"
+      style="margin-left:auto;background:rgba(0,255,136,0.15);border:1px solid var(--green);color:var(--green);display:none;">
+      📟 モニター
+    </button>
+  </div>
+
+  <!-- Patient Monitor Overlay -->
+  <div id="monitorOverlay" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;flex-direction:column;gap:0;">
+    <div style="width:100%;max-width:500px;background:#050d0a;border:1px solid #00ff88;border-radius:12px;overflow:hidden;margin:12px;">
+      <!-- Monitor header -->
+      <div style="background:#0a1f15;padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #0f3020;">
+        <span style="font-size:12px;font-weight:700;color:#00ff88;letter-spacing:0.1em;">📟 患者監視モニター</span>
+        <span style="font-size:10px;color:#3a7a5a;margin-left:4px;" id="monPhaseLabel"></span>
+        <span style="margin-left:auto;font-size:11px;color:#3a7a5a;font-family:'Share Tech Mono',monospace;" id="monTime"></span>
+        <button onclick="document.getElementById('monitorOverlay').style.display='none'" style="background:transparent;border:none;color:#3a7a5a;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+      </div>
+      <!-- Waveform area -->
+      <div style="background:#020b06;padding:6px 10px;height:60px;position:relative;overflow:hidden;">
+        <canvas id="ecgCanvas" width="480" height="48" style="width:100%;height:48px;"></canvas>
+      </div>
+      <!-- Vitals grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#0f3020;">
+        <div id="mon_hr"  class="mon-cell" style="background:#050d0a;padding:14px 16px;">
+          <div style="font-size:10px;color:#3a7a5a;letter-spacing:0.08em;">HR</div>
+          <div style="font-size:36px;font-weight:700;color:#00ff88;font-family:'Share Tech Mono',monospace;line-height:1.1;" id="mv_hr">--</div>
+          <div style="font-size:10px;color:#3a7a5a;">bpm</div>
+        </div>
+        <div id="mon_spo2" class="mon-cell" style="background:#050d0a;padding:14px 16px;">
+          <div style="font-size:10px;color:#3a7a5a;letter-spacing:0.08em;">SpO₂</div>
+          <div style="font-size:36px;font-weight:700;color:#00d4ff;font-family:'Share Tech Mono',monospace;line-height:1.1;" id="mv_spo2">--</div>
+          <div style="font-size:10px;color:#3a7a5a;">%</div>
+        </div>
+        <div id="mon_bp" class="mon-cell" style="background:#050d0a;padding:14px 16px;">
+          <div style="font-size:10px;color:#3a7a5a;letter-spacing:0.08em;">BP</div>
+          <div style="font-size:28px;font-weight:700;color:#ff9f43;font-family:'Share Tech Mono',monospace;line-height:1.2;" id="mv_bp">--/--</div>
+          <div style="font-size:10px;color:#3a7a5a;">mmHg</div>
+        </div>
+        <div id="mon_rr" class="mon-cell" style="background:#050d0a;padding:14px 16px;">
+          <div style="font-size:10px;color:#3a7a5a;letter-spacing:0.08em;">呼吸数</div>
+          <div style="font-size:36px;font-weight:700;color:#a78bfa;font-family:'Share Tech Mono',monospace;line-height:1.1;" id="mv_rr">--</div>
+          <div style="font-size:10px;color:#3a7a5a;">回/分</div>
+        </div>
+      </div>
+      <!-- Rhythm -->
+      <div style="background:#050d0a;border-top:1px solid #0f3020;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:10px;color:#3a7a5a;letter-spacing:0.08em;">心電図</span>
+        <span style="font-size:13px;font-weight:700;color:#00ff88;" id="mv_ecg">--</span>
+        <span style="margin-left:auto;font-size:10px;color:#3a7a5a;">GCS</span>
+        <span style="font-size:13px;font-weight:700;color:#ffd700;" id="mv_gcs">--</span>
+      </div>
+      <!-- Update button -->
+      <div style="padding:10px 14px;background:#0a1f15;border-top:1px solid #0f3020;">
+        <button class="btn btn-block" onclick="updateMonitorVitals()"
+          style="background:rgba(0,255,136,0.12);border:1px solid var(--green);color:var(--green);font-size:12px;padding:8px;">
+          🔄 最新値に更新（AIに問い合わせ）
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Role selector -->
@@ -882,11 +958,19 @@ const roleIcons = {patient:'🤒',family:'👨‍👩‍👧',vital:'📊',respo
 // INIT
 // ============================================================
 window.onload = () => {
+  // ===== 起動時チェック =====
+  const isFile = location.protocol === 'file:';
+  if(isFile){
+    showStartupWarning();
+  } else {
+    // https:// の場合はマイク許可を事前にリクエスト
+    requestMicPermission();
+  }
+
   // Load provider preference
   const prov = localStorage.getItem('emprovider') || 'gemini';
   document.getElementById('aiProvider').value = prov;
   onProviderChange();
-  // Load saved key for current provider
   const k = localStorage.getItem('emkey_' + prov);
   if(k){ apiKey=k; document.getElementById('apiIn').value=k; setApiSt(true); }
   renderSavedList();
@@ -902,31 +986,146 @@ window.onload = () => {
   if(rs) rs.addEventListener('input',()=>{ document.getElementById('s_disprateVal').textContent=rs.value; });
 };
 
+// ============================================================
+// 起動時：file://警告 + マイク許可
+// ============================================================
+function showStartupWarning(){
+  const ov = document.createElement('div');
+  ov.id = 'startupWarning';
+  ov.style.cssText = `
+    position:fixed;inset:0;z-index:20000;
+    background:rgba(4,8,18,0.97);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:16px;padding:24px;
+  `;
+  ov.innerHTML = `
+    <div style="font-size:48px;">⚠️</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#ffd700;text-align:center;">
+      ローカルファイルで開いています
+    </div>
+    <div style="font-size:13px;color:#5a7a9a;line-height:1.8;text-align:center;max-width:340px;">
+      このアプリは <strong style="color:#ff3366;">file://</strong> では音声・API・マイクが動作しません。<br><br>
+      以下のURLからアクセスしてください：
+    </div>
+    <div style="background:#162035;border:1px solid #2a4a70;border-radius:8px;padding:12px 16px;font-family:'Share Tech Mono',monospace;font-size:13px;color:#00d4ff;word-break:break-all;text-align:center;max-width:340px;">
+      https://mineaki966-blip.github.io/救急トレーナー/
+    </div>
+    <button onclick="copyUrl()" style="padding:10px 20px;background:#00d4ff;color:#070b14;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
+      📋 URLをコピー
+    </button>
+    <button onclick="document.getElementById('startupWarning').remove()" style="padding:8px 16px;background:transparent;border:1px solid #3a5a7a;color:#5a7a9a;border-radius:8px;font-size:12px;cursor:pointer;">
+      このまま続ける（機能制限あり）
+    </button>
+  `;
+  document.body.appendChild(ov);
+}
+
+function copyUrl(){
+  const url = 'https://mineaki966-blip.github.io/救急トレーナー/';
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>toast('URLをコピーしました！'));
+  } else {
+    // フォールバック
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast('URLをコピーしました！');
+  }
+}
+
+function requestMicPermission(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  // マイク許可を事前リクエスト（許可ダイアログを早めに表示）
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream=>{
+      // 許可取得後すぐにストリームを止める（使用はしない）
+      stream.getTracks().forEach(t=>t.stop());
+      toast('🎤 マイクの使用が許可されました');
+    })
+    .catch(err=>{
+      if(err.name === 'NotAllowedError'){
+        showMicDeniedHelp();
+      }
+    });
+}
+
+function showMicDeniedHelp(){
+  const ov = document.createElement('div');
+  ov.id = 'micDenied';
+  ov.style.cssText = `
+    position:fixed;inset:0;z-index:20000;
+    background:rgba(4,8,18,0.95);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;padding:24px;
+  `;
+  ov.innerHTML = `
+    <div style="font-size:48px;">🎤</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#ff3366;text-align:center;">
+      マイクの使用が拒否されています
+    </div>
+    <div style="font-size:13px;color:#5a7a9a;line-height:1.9;text-align:left;max-width:340px;">
+      音声認識を使うにはマイクを許可してください。<br><br>
+      <strong style="color:#dde6f0;">Chromeでの許可方法：</strong><br>
+      ① URLバー左の 🔒 をタップ<br>
+      ② 「権限」または「サイトの設定」<br>
+      ③ 「マイク」→「許可」に変更<br>
+      ④ ページを再読み込み
+    </div>
+    <button onclick="location.reload()" style="padding:10px 20px;background:#00ff88;color:#070b14;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
+      🔄 再読み込み
+    </button>
+    <button onclick="document.getElementById('micDenied').remove()" style="padding:8px 16px;background:transparent;border:1px solid #3a5a7a;color:#5a7a9a;border-radius:8px;font-size:12px;cursor:pointer;">
+      とりあえず閉じる
+    </button>
+  `;
+  document.body.appendChild(ov);
+}
+
+const PROVIDER_META = {
+  gemini:    { name:'Gemini',   prefix:'AIza',   hint:'AIza... （Google AI Studio）' },
+  groq:      { name:'Groq',     prefix:'gsk_',   hint:'gsk_... （Groq Cloud・無料/高速）' },
+  openai:    { name:'OpenAI',   prefix:'sk-',    hint:'sk-... （OpenAI Platform）' },
+  anthropic: { name:'Claude',   prefix:'sk-ant', hint:'sk-ant-... （Anthropic Console）' }
+};
+
 function onProviderChange(){
   const prov = document.getElementById('aiProvider').value;
   const inp = document.getElementById('apiIn');
-  if(prov === 'gemini'){
-    inp.placeholder = 'AIza... （Google AI StudioのAPIキー）';
-  } else {
-    inp.placeholder = 'sk-ant-... （AnthropicのAPIキー）';
-  }
-  // Load saved key for this provider
+  const meta = PROVIDER_META[prov] || PROVIDER_META.gemini;
+  inp.placeholder = meta.hint;
   const saved = localStorage.getItem('emkey_' + prov);
   if(saved){ apiKey=saved; inp.value=saved; setApiSt(true); }
   else { apiKey=''; inp.value=''; setApiSt(false); }
+  localStorage.setItem('emprovider', prov);
 }
 
 function saveKey(){
   const prov = document.getElementById('aiProvider').value;
   const v = document.getElementById('apiIn').value.trim();
   if(!v){ alert('APIキーを入力してください'); return; }
-  if(prov === 'anthropic' && !v.startsWith('sk-')){ alert('AnthropicキーはSK-で始まります'); return; }
-  if(prov === 'gemini' && !v.startsWith('AIza')){ alert('GeminiキーはAIzaで始まります'); return; }
+  const meta = PROVIDER_META[prov];
+  if(meta && meta.prefix && !v.toLowerCase().startsWith(meta.prefix.toLowerCase())){
+    if(!confirm(meta.name + 'のキーは通常「' + meta.prefix + '」で始まります。このまま保存しますか？')) return;
+  }
   apiKey=v;
   localStorage.setItem('emkey_' + prov, v);
   localStorage.setItem('emprovider', prov);
   setApiSt(true);
-  toast('APIキーを保存しました（' + (prov==='gemini'?'Gemini':'Claude') + '）');
+  toast('APIキーを保存しました（' + meta.name + '）');
+}
+
+// 現在と異なるプロバイダで保存済みのキーを探す
+function findAlternateProvider(currentProv){
+  const order = ['groq','openai','anthropic','gemini'];
+  for(const p of order){
+    if(p === currentProv) continue;
+    const k = localStorage.getItem('emkey_' + p);
+    if(k) return { prov:p, key:k };
+  }
+  return null;
 }
 function setApiSt(ok){
   const el=document.getElementById('apiSt');
@@ -1124,12 +1323,10 @@ function closeDispatch(onDone){
 
 function setPhase(n){
   currentPhase=n;
-  // Update phase buttons
   [1,2,3].forEach(i=>{
     const b=document.getElementById('pBtn'+i);
     b.classList.toggle('current',i===n);
   });
-  // Update phase bar
   for(let i=0;i<=4;i++){
     const el=document.getElementById('ph'+i);
     if(i<n) el.className='ph-step done';
@@ -1137,11 +1334,160 @@ function setPhase(n){
     else el.className='ph-step';
   }
   document.getElementById('phaseTag').textContent=phaseLabels[n]||'';
+  // モニターボタンは車内収容以降で表示
+  const mb = document.getElementById('monitorBtn');
+  if(mb) mb.style.display = n>=2 ? 'inline-flex' : 'none';
   if(n>=1){
     const labels={1:'🚨 現場接触フェーズへ移行',2:'🚑 車内収容フェーズへ移行',3:'🏥 搬送開始フェーズへ移行'};
     addSys(labels[n]);
-    chatHistory=[];// reset per phase context
+    chatHistory=[];
   }
+}
+
+// ============================================================
+// PATIENT MONITOR
+// ============================================================
+let monitorData = { hr:'--', spo2:'--', bp:'--/--', rr:'--', ecg:'--', gcs:'--' };
+let ecgAnimFrame = null;
+let ecgX = 0;
+
+function showMonitor(){
+  const ov = document.getElementById('monitorOverlay');
+  ov.style.display = 'flex';
+  document.getElementById('monPhaseLabel').textContent = '[' + (phaseLabels[currentPhase]||'') + ']';
+  // 時刻更新
+  const updateClock = ()=>{
+    const el = document.getElementById('monTime');
+    if(el) el.textContent = new Date().toLocaleTimeString('ja-JP');
+  };
+  updateClock();
+  setInterval(updateClock, 1000);
+  // バイタルをシナリオから自動パース試行
+  parseVitalsFromScenario();
+  renderMonitorValues();
+  startEcgAnimation();
+}
+
+function parseVitalsFromScenario(){
+  if(!scenario) return;
+  const src = (currentPhase===3 ? scenario.v3 : currentPhase===2 ? scenario.v2 : scenario.v1) || scenario.v1 || '';
+  // 正規表現で数値を抽出
+  const hr   = src.match(/HR\s*(\d+)/i)   || src.match(/脈拍\s*(\d+)/);
+  const spo2 = src.match(/SpO2\s*(\d+)/i) || src.match(/酸素\s*(\d+)/);
+  const bp   = src.match(/BP\s*(\d+\/\d+)/i) || src.match(/血圧\s*(\d+\/\d+)/);
+  const rr   = src.match(/RR\s*(\d+)/i)   || src.match(/呼吸\s*(\d+)/);
+  const gcs  = src.match(/GCS\s*[E\d]*([\d]+)/i);
+  if(hr)   monitorData.hr   = hr[1];
+  if(spo2) monitorData.spo2 = spo2[1];
+  if(bp)   monitorData.bp   = bp[1];
+  if(rr)   monitorData.rr   = rr[1];
+  if(gcs)  monitorData.gcs  = gcs[1];
+  // 心電図リズム判定
+  const hrNum = parseInt(monitorData.hr);
+  if(!isNaN(hrNum)){
+    if(hrNum > 150) monitorData.ecg = '頻脈';
+    else if(hrNum < 50) monitorData.ecg = '徐脈';
+    else if(src.includes('不整') || src.includes('AF') || src.includes('心房細動')) monitorData.ecg = '心房細動';
+    else monitorData.ecg = '洞調律';
+  }
+}
+
+function renderMonitorValues(){
+  document.getElementById('mv_hr').textContent   = monitorData.hr;
+  document.getElementById('mv_spo2').textContent = monitorData.spo2;
+  document.getElementById('mv_bp').textContent   = monitorData.bp;
+  document.getElementById('mv_rr').textContent   = monitorData.rr;
+  document.getElementById('mv_ecg').textContent  = monitorData.ecg;
+  document.getElementById('mv_gcs').textContent  = monitorData.gcs;
+  // 異常値アラート色
+  const hr = parseInt(monitorData.hr);
+  const spo2 = parseInt(monitorData.spo2);
+  const el_hr = document.getElementById('mv_hr');
+  const el_spo2 = document.getElementById('mv_spo2');
+  if(!isNaN(hr) && (hr>120||hr<50)) el_hr.style.color='#ff3366';
+  else el_hr.style.color='#00ff88';
+  if(!isNaN(spo2) && spo2<95) el_spo2.style.color='#ff3366';
+  else el_spo2.style.color='#00d4ff';
+}
+
+async function updateMonitorVitals(){
+  if(!apiKey){ toast('APIキーを設定してください'); return; }
+  unlockAudio();
+  const sys = buildSystemPrompt('vital', currentPhase);
+  const tid = showThinking();
+  try{
+    const reply = await callAI(sys, [{role:'user',content:'現在のバイタルサインを教えてください。HR、SpO2、BP、呼吸数、GCS、心電図リズムを数値のみで答えてください。'}]);
+    removeThinking(tid);
+    // Parse reply into monitorData
+    const hr   = reply.match(/HR[：:\s]*(\d+)/i);
+    const spo2 = reply.match(/SpO2[：:\s]*(\d+)/i);
+    const bp   = reply.match(/BP[：:\s]*(\d+\/\d+)/i);
+    const rr   = reply.match(/(?:RR|呼吸数?)[：:\s]*(\d+)/i);
+    const gcs  = reply.match(/GCS[：:\s]*(\d+)/i);
+    if(hr)   monitorData.hr   = hr[1];
+    if(spo2) monitorData.spo2 = spo2[1];
+    if(bp)   monitorData.bp   = bp[1];
+    if(rr)   monitorData.rr   = rr[1];
+    if(gcs)  monitorData.gcs  = gcs[1];
+    if(reply.includes('不整')||reply.includes('AF')||reply.includes('心房細動')) monitorData.ecg='心房細動';
+    else if(reply.includes('頻脈')) monitorData.ecg='頻脈';
+    else if(reply.includes('徐脈')) monitorData.ecg='徐脈';
+    else if(reply.includes('洞')) monitorData.ecg='洞調律';
+    renderMonitorValues();
+    speakQueued(reply);
+  }catch(e){
+    removeThinking(tid);
+    addSys('エラー: '+e.message);
+  }
+}
+
+// Simple ECG animation on canvas
+function startEcgAnimation(){
+  const canvas = document.getElementById('ecgCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ecgX = 0;
+  let prevY = H/2;
+  const hrNum = parseInt(monitorData.hr) || 80;
+  const interval = Math.round(60000 / hrNum / 16); // ms per pixel step
+
+  function drawStep(){
+    // Scroll left
+    const imgData = ctx.getImageData(1, 0, W-1, H);
+    ctx.putImageData(imgData, 0, 0);
+    ctx.clearRect(W-1, 0, 1, H);
+
+    // ECG waveform pattern (simple QRS simulation)
+    const cycle = Math.round(60000 / hrNum / 16);
+    const pos = ecgX % cycle;
+    let y = H/2;
+    const p = pos / cycle;
+    if(p < 0.05) y = H/2 - 4;           // P wave
+    else if(p < 0.10) y = H/2;
+    else if(p < 0.12) y = H/2 + 14;     // Q dip
+    else if(p < 0.15) y = H/2 - H*0.7;  // R spike
+    else if(p < 0.18) y = H/2 + 10;     // S dip
+    else if(p < 0.22) y = H/2;
+    else if(p < 0.35) y = H/2 - 6;      // T wave
+    else y = H/2;
+
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(W-2, prevY);
+    ctx.lineTo(W-1, y);
+    ctx.stroke();
+    prevY = y;
+    ecgX++;
+  }
+
+  function loop(){
+    drawStep();
+    ecgAnimFrame = setTimeout(loop, interval);
+  }
+  clearTimeout(ecgAnimFrame);
+  loop();
 }
 
 function confirmEnd(){
@@ -1301,9 +1647,26 @@ ${baseInfo}
 // ============================================================
 function getProvider(){ return document.getElementById('aiProvider').value; }
 
-async function callGemini(systemPrompt, messages){
-  // Build Gemini contents array from history
-  // Gemini uses: [{role:'user',parts:[{text:'...'}]}, {role:'model',parts:[{text:'...'}]}]
+// Geminiは「軽量→中量→高精度」の順にフォールバック（quota/課金対策）
+const GEMINI_MODELS = [
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-flash',
+  'gemini-2.0-flash'
+];
+
+function isQuotaError(msg){
+  if(!msg) return false;
+  const s = String(msg).toLowerCase();
+  return s.includes('quota') || s.includes('resource_exhausted')
+      || s.includes('rate limit') || s.includes('429')
+      || s.includes('insufficient_quota') || s.includes('too many requests');
+}
+
+async function callGemini(systemPrompt, messages, keyOverride){
+  const key = keyOverride || apiKey;
+  if(!key) throw new Error('Gemini APIキーが未設定');
   const contents = [];
   for(const m of messages){
     contents.push({
@@ -1311,47 +1674,276 @@ async function callGemini(systemPrompt, messages){
       parts: [{ text: m.content }]
     });
   }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-  const body = {
-    system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: contents,
-    generationConfig: { maxOutputTokens: 600, temperature: 0.7 }
-  };
-  const res = await fetch(url, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(body)
-  });
-  if(!res.ok){
-    const e = await res.json();
-    throw new Error(e.error?.message || 'Gemini API エラー');
+  let lastErr = null;
+  for(const model of GEMINI_MODELS){
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key);
+    const body = {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: contents,
+      generationConfig: { maxOutputTokens: 600, temperature: 0.7 }
+    };
+    try{
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      });
+      if(!res.ok){
+        let e={}; try{ e = await res.json(); }catch(_){}
+        const msg = (e && e.error && e.error.message) || ('Gemini HTTP '+res.status);
+        if(res.status===429 || isQuotaError(msg) || res.status===404){
+          lastErr = new Error(msg); lastErr.quota = (res.status===429 || isQuotaError(msg));
+          continue;
+        }
+        const err = new Error(msg); err.quota = false; throw err;
+      }
+      const data = await res.json();
+      const text = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
+      if(text) return text;
+      lastErr = new Error('Gemini: 応答が空（finishReason=' + ((data.candidates && data.candidates[0] && data.candidates[0].finishReason)||'?') + '）');
+      continue;
+    }catch(e){
+      lastErr = e;
+      if(e.quota === false) break;
+    }
   }
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '（応答なし）';
+  const err = new Error('Gemini全モデルでエラー: ' + ((lastErr && lastErr.message)||''));
+  err.quota = !!(lastErr && lastErr.quota);
+  throw err;
 }
 
-async function callAnthropic(systemPrompt, messages){
+async function callAnthropic(systemPrompt, messages, keyOverride){
+  const key = keyOverride || apiKey;
+  if(!key) throw new Error('Anthropic APIキーが未設定');
   const res = await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
     body: JSON.stringify({
-      model:'claude-sonnet-4-20250514',
+      model:'claude-3-5-haiku-20241022',
       max_tokens: 600,
       system: systemPrompt,
       messages: messages
     })
   });
   if(!res.ok){
-    const e = await res.json();
-    throw new Error(e.error?.message || 'Claude API エラー');
+    let e={}; try{ e = await res.json(); }catch(_){}
+    const msg = (e && e.error && e.error.message) || ('Claude HTTP '+res.status);
+    const err = new Error(msg); err.quota = (res.status===429 || isQuotaError(msg)); throw err;
   }
   const data = await res.json();
-  return data.content.map(b=>b.text||'').join('');
+  return data.content.map(function(b){return b.text||'';}).join('');
+}
+
+function toOpenAIMessages(systemPrompt, messages){
+  const arr = [{role:'system', content:systemPrompt}];
+  for(const m of messages){
+    arr.push({role: m.role==='assistant'?'assistant':'user', content: m.content});
+  }
+  return arr;
+}
+
+async function callOpenAI(systemPrompt, messages, keyOverride){
+  const key = keyOverride || apiKey;
+  if(!key) throw new Error('OpenAI APIキーが未設定');
+  const models = ['gpt-4o-mini', 'gpt-4.1-mini'];
+  let lastErr = null;
+  for(const model of models){
+    try{
+      const res = await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body: JSON.stringify({
+          model: model,
+          messages: toOpenAIMessages(systemPrompt, messages),
+          max_tokens: 600,
+          temperature: 0.7
+        })
+      });
+      if(!res.ok){
+        let e={}; try{ e = await res.json(); }catch(_){}
+        const msg = (e && e.error && e.error.message) || ('OpenAI HTTP '+res.status);
+        if(res.status===429 || isQuotaError(msg) || res.status===404){
+          lastErr = new Error(msg); lastErr.quota = (res.status===429||isQuotaError(msg));
+          continue;
+        }
+        const err = new Error(msg); err.quota = false; throw err;
+      }
+      const data = await res.json();
+      return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '（応答なし）';
+    }catch(e){ lastErr = e; if(e.quota===false) break; }
+  }
+  const err = new Error('OpenAI全モデルでエラー: '+((lastErr && lastErr.message)||''));
+  err.quota = !!(lastErr && lastErr.quota);
+  throw err;
+}
+
+async function callGroq(systemPrompt, messages, keyOverride){
+  const key = keyOverride || apiKey;
+  if(!key) throw new Error('Groq APIキーが未設定');
+  const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+  let lastErr = null;
+  for(const model of models){
+    try{
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body: JSON.stringify({
+          model: model,
+          messages: toOpenAIMessages(systemPrompt, messages),
+          max_tokens: 600,
+          temperature: 0.7
+        })
+      });
+      if(!res.ok){
+        let e={}; try{ e = await res.json(); }catch(_){}
+        const msg = (e && e.error && e.error.message) || ('Groq HTTP '+res.status);
+        if(res.status===429 || isQuotaError(msg) || res.status===404 || res.status===400){
+          lastErr = new Error(msg); lastErr.quota = (res.status===429||isQuotaError(msg));
+          continue;
+        }
+        const err = new Error(msg); err.quota = false; throw err;
+      }
+      const data = await res.json();
+      return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '（応答なし）';
+    }catch(e){ lastErr = e; if(e.quota===false) break; }
+  }
+  const err = new Error('Groq全モデルでエラー: '+((lastErr && lastErr.message)||''));
+  err.quota = !!(lastErr && lastErr.quota);
+  throw err;
+}
+
+function callByProvider(prov, systemPrompt, messages, keyOverride){
+  if(prov === 'gemini')    return callGemini(systemPrompt, messages, keyOverride);
+  if(prov === 'groq')      return callGroq(systemPrompt, messages, keyOverride);
+  if(prov === 'openai')    return callOpenAI(systemPrompt, messages, keyOverride);
+  if(prov === 'anthropic') return callAnthropic(systemPrompt, messages, keyOverride);
+  throw new Error('未対応プロバイダ: '+prov);
 }
 
 async function callAI(systemPrompt, messages){
-  if(getProvider() === 'gemini') return callGemini(systemPrompt, messages);
-  return callAnthropic(systemPrompt, messages);
+  const prov = getProvider();
+  try{
+    return await callByProvider(prov, systemPrompt, messages);
+  }catch(e){
+    const autoCk = document.getElementById('autoFallback');
+    const auto = autoCk ? autoCk.checked : true;
+    if(auto && (e.quota || /network|failed to fetch/i.test(e.message||''))){
+      const alt = findAlternateProvider(prov);
+      if(alt){
+        addSys('⚠️ ' + PROVIDER_META[prov].name + 'が応答不可（' + e.message + '）→ ' + PROVIDER_META[alt.prov].name + ' に自動切替');
+        try{
+          const reply = await callByProvider(alt.prov, systemPrompt, messages, alt.key);
+          document.getElementById('aiProvider').value = alt.prov;
+          apiKey = alt.key;
+          document.getElementById('apiIn').value = alt.key;
+          setApiSt(true);
+          localStorage.setItem('emprovider', alt.prov);
+          toast('✅ ' + PROVIDER_META[alt.prov].name + ' に切替えて応答');
+          return reply;
+        }catch(e2){
+          throw new Error(PROVIDER_META[prov].name + '失敗 / ' + PROVIDER_META[alt.prov].name + 'も失敗: ' + e2.message);
+        }
+      }
+    }
+    throw e;
+  }
+}
+
+// ======= 診断テスト =======
+// 診断ログ：現在の画面（設定画面でも訓練画面でも）必ず見える場所に表示
+function diag(msg, color){
+  const panel = document.getElementById('diagPanel');
+  const log = document.getElementById('diagLog');
+  if(panel && log){
+    panel.style.display = 'block';
+    const t = new Date().toLocaleTimeString('ja-JP');
+    const c = color || 'var(--text)';
+    const div = document.createElement('div');
+    div.style.color = c;
+    div.textContent = '[' + t + '] ' + msg;
+    log.appendChild(div);
+    log.parentElement.scrollTop = log.parentElement.scrollHeight;
+  }
+  // チャットログがあればそちらにも（訓練中）
+  try{ if(document.getElementById('chatLog')) addSys(msg); }catch(_){}
+  console.log('[diag]', msg);
+}
+function clearDiag(){
+  const log = document.getElementById('diagLog');
+  const panel = document.getElementById('diagPanel');
+  if(log) log.innerHTML = '';
+  if(panel) panel.style.display = 'none';
+}
+
+function testTTS(){
+  diag('🔊 読み上げテスト開始...', 'var(--cyan)');
+  if(!window.speechSynthesis){ diag('❌ このブラウザは音声合成未対応', 'var(--red)'); return; }
+  unlockAudio();
+  const txt = 'テストです。音声合成は正常に動作しています。';
+  try{ window.speechSynthesis.cancel(); }catch(e){}
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang='ja-JP'; u.rate=1.0;
+  u.onstart = ()=> diag('▶ 再生開始', 'var(--green)');
+  u.onend = ()=> diag('✅ 読み上げ完了', 'var(--green)');
+  u.onerror = e => diag('❌ 読み上げエラー: '+(e.error||'不明'), 'var(--red)');
+  const voices = window.speechSynthesis.getVoices();
+  diag('利用可能音声: ' + voices.length + '個（日本語: ' + voices.filter(v=>v.lang&&v.lang.startsWith('ja')).length + '個）');
+  const ja = voices.find(v=>v.lang && v.lang.startsWith('ja'));
+  if(ja) { u.voice = ja; diag('使用音声: ' + ja.name); }
+  window.speechSynthesis.speak(u);
+}
+
+function testMic(){
+  diag('🎤 マイクテスト開始: 何か話してください（10秒以内）', 'var(--cyan)');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ diag('❌ このブラウザは音声認識未対応。Chromeを使ってください', 'var(--red)'); return; }
+  const r = new SR();
+  r.lang='ja-JP'; r.continuous=false; r.interimResults=true;
+  let got = false;
+  r.onstart = ()=> diag('▶ 録音中...', 'var(--green)');
+  r.onresult = e => {
+    let t=''; for(let i=0;i<e.results.length;i++) t += e.results[i][0].transcript;
+    if(e.results[e.results.length-1].isFinal){
+      got = true;
+      diag('✅ マイク認識成功: 「' + t + '」', 'var(--green)');
+      try{ r.stop(); }catch(_){}
+    } else {
+      diag('🎙 途中: ' + t, 'var(--dim)');
+    }
+  };
+  r.onerror = e => diag('❌ マイクエラー: ' + e.error, 'var(--red)');
+  r.onend = ()=>{ if(!got) diag('⚠️ 10秒以内に音声が認識されませんでした', 'var(--orange)'); };
+  try{ r.start(); setTimeout(()=>{try{r.stop();}catch(_){}},10000); }
+  catch(e){ diag('❌ マイク開始失敗: '+e.message, 'var(--red)'); }
+}
+
+async function testAPI(){
+  diag('🤖 API応答テスト開始...', 'var(--cyan)');
+  if(!apiKey){ diag('❌ 先にAPIキーを保存してください', 'var(--red)'); alert('先にAPIキーを保存してください'); return; }
+  const prov = getProvider();
+  diag('プロバイダ: ' + PROVIDER_META[prov].name + ' / キー先頭: ' + apiKey.substring(0,8) + '...');
+  try{
+    const reply = await callAI('あなたは日本語で一言だけ返す動作確認用AIです。', [{role:'user', content:'こんにちは、聞こえますか？と日本語で20文字以内で返事してください。'}]);
+    diag('✅ API応答: ' + reply, 'var(--green)');
+    speak(reply);
+  }catch(e){
+    diag('❌ API失敗: ' + e.message, 'var(--red)');
+    // 詳細ヒント
+    if(/api key|api_key|key not valid|invalid/i.test(e.message)){
+      diag('💡 ヒント: APIキーが無効です。コピペミスが無いか、キーが有効か再確認してください', 'var(--yellow)');
+    } else if(/quota|rate|429|exhausted/i.test(e.message)){
+      diag('💡 ヒント: 無料枠切れです。別プロバイダ（Groq推奨）のキーを保存して自動切替を活用してください', 'var(--yellow)');
+    } else if(/network|failed to fetch|cors/i.test(e.message)){
+      diag('💡 ヒント: ネットワーク/CORSエラー。オフラインかブラウザ拡張がブロック？', 'var(--yellow)');
+    } else if(/404|not found|model/i.test(e.message)){
+      diag('💡 ヒント: モデル名が使えない可能性。プロバイダ側でモデル一覧を確認', 'var(--yellow)');
+    }
+  }
 }
 
 async function send(){
