@@ -58,6 +58,26 @@ body::before{
 
 .wrap{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:12px;}
 
+/* ===== TRAINING MODE ===== */
+body.training-on #setupOnly{display:none !important;}
+body.training-on .hdr{padding:8px 12px;margin-bottom:6px;}
+body.training-on .hdr-sub{display:none;}
+body.training-on .phase-bar{padding:6px 12px;margin-bottom:6px;}
+body.training-on .phase-actions{padding:8px 10px;margin-bottom:6px;}
+
+/* Compact setup view too: remove the never-used "test response" clutter */
+.training-indicator{
+  display:none;
+  gap:8px;align-items:center;
+  padding:6px 12px;margin-bottom:8px;
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:8px;font-size:11px;color:var(--dim);
+}
+body.training-on .training-indicator{display:flex;}
+.training-indicator .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);}
+.training-indicator button{margin-left:auto;padding:4px 10px;font-size:11px;background:transparent;border:1px solid var(--border2);color:var(--dim);border-radius:5px;cursor:pointer;}
+.training-indicator button:hover{border-color:var(--cyan);color:var(--cyan);}
+
 /* ===== HEADER ===== */
 .hdr{
   display:flex;align-items:center;gap:12px;
@@ -566,6 +586,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 </div>
 
 <!-- API KEY -->
+<div id="setupOnly">
 <div class="api-bar" style="flex-wrap:wrap;gap:8px;">
   <span style="font-size:12px;color:var(--dim);white-space:nowrap;">🔑 AI エンジン</span>
   <select id="aiProvider" onchange="onProviderChange()" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;padding:6px 8px;outline:none;flex-shrink:0;">
@@ -593,6 +614,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button onclick="clearDiag()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:11px;">✕ 閉じる</button>
   </div>
   <div id="diagLog"></div>
+</div>
+</div><!-- /setupOnly -->
+
+<!-- Training-only minimal indicator -->
+<div class="training-indicator" id="trainIndicator">
+  <span class="status-dot"></span>
+  <span id="trainIndText">訓練中</span>
+  <button onclick="backToSetup()">⚙ 設定に戻る</button>
 </div>
 
 <!-- PHASE BAR -->
@@ -746,8 +775,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   <div class="timer-bar">
     <span class="t-label">経過時間</span>
     <span id="timerDisplay">00:00</span>
+    <button class="btn btn-sm" id="assessBtn" onclick="togglePatientAudio()"
+      style="margin-left:auto;background:rgba(255,200,50,0.15);border:1px solid #ffc832;color:#ffc832;display:none;">
+      🔊 傷病者の音
+    </button>
     <button class="btn btn-sm" id="monitorBtn" onclick="showMonitor()"
-      style="margin-left:auto;background:rgba(0,255,136,0.15);border:1px solid var(--green);color:var(--green);display:none;">
+      style="background:rgba(0,255,136,0.15);border:1px solid var(--green);color:var(--green);display:none;margin-left:6px;">
       📟 モニター
     </button>
   </div>
@@ -802,6 +835,37 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           style="background:rgba(0,255,136,0.12);border:1px solid var(--green);color:var(--green);font-size:12px;padding:8px;">
           🔄 最新値に更新（AIに問い合わせ）
         </button>
+        <button class="btn btn-block" onclick="show12Lead()"
+          style="background:rgba(255,200,50,0.12);border:1px solid #ffc832;color:#ffc832;font-size:12px;padding:8px;margin-top:6px;">
+          🫀 12誘導ECGを確認
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12-LEAD ECG OVERLAY (静的スナップショット) -->
+  <div id="lead12Overlay" style="display:none;position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,0.95);align-items:center;justify-content:center;flex-direction:column;">
+    <div style="width:96%;max-width:760px;background:#0a1a10;border:2px solid #0f3020;border-radius:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#051812;border-bottom:2px solid #0f3020;">
+        <span style="font-size:12px;font-weight:700;color:#00ff88;letter-spacing:0.1em;">🫀 12誘導ECG（スナップショット）</span>
+        <div>
+          <button onclick="show12Lead()" style="background:transparent;border:1px solid #0f3020;color:#3a7a5a;font-size:11px;padding:3px 10px;border-radius:4px;margin-right:8px;cursor:pointer;">⟳ 再取得</button>
+          <button onclick="close12Lead()" style="background:transparent;border:none;color:#3a7a5a;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:6px;background:#02110a;">
+        <canvas id="lead_I"   width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_aVR" width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_V1"  width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_V4"  width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_II"  width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_aVL" width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_V2"  width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_V5"  width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_III" width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_aVF" width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_V3"  width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
+        <canvas id="lead_V6"  width="180" height="62" style="width:100%;height:62px;background:#02110a;"></canvas>
       </div>
     </div>
   </div>
@@ -1340,6 +1404,17 @@ function closeDispatch(onDone){
 
 function setPhase(n){
   currentPhase=n;
+  // 訓練モード切替：設定バー等を隠す
+  if(n>=1){
+    document.body.classList.add('training-on');
+    const ind = document.getElementById('trainIndText');
+    if(ind){
+      const prov = (PROVIDER_META[getProvider()]||{name:getProvider()}).name;
+      ind.textContent = '訓練中 ● AI: ' + prov + ' ● ' + (phaseLabels[n]||'');
+    }
+  } else {
+    document.body.classList.remove('training-on');
+  }
   [1,2,3].forEach(i=>{
     const b=document.getElementById('pBtn'+i);
     b.classList.toggle('current',i===n);
@@ -1354,6 +1429,11 @@ function setPhase(n){
   // モニターボタンは車内収容以降で表示
   const mb = document.getElementById('monitorBtn');
   if(mb) mb.style.display = n>=2 ? 'inline-flex' : 'none';
+  // 傷病者音ボタンはPhase1のみ表示（初期評価：触診・視診の聴覚補助）
+  const ab = document.getElementById('assessBtn');
+  if(ab) ab.style.display = n===1 ? 'inline-flex' : 'none';
+  // Phase1以外では音を停止
+  if(n!==1 && typeof stopPatientAudio==='function') stopPatientAudio();
   if(n>=1){
     const labels={1:'🚨 現場接触フェーズへ移行',2:'🚑 車内収容フェーズへ移行',3:'🏥 搬送開始フェーズへ移行'};
     addSys(labels[n]);
@@ -1364,7 +1444,7 @@ function setPhase(n){
 // ============================================================
 // PATIENT MONITOR
 // ============================================================
-let monitorData = { hr:'--', spo2:'--', bp:'--/--', rr:'--', ecg:'--', gcs:'--' };
+let monitorData = { hr:'--', spo2:'--', bp:'--/--', rr:'--', ecg:'--', gcs:'--', st:'normal' };
 let ecgAnimFrame = null;
 let ecgX = 0;
 
@@ -1407,6 +1487,10 @@ function parseVitalsFromScenario(){
     else if(src.includes('不整') || src.includes('AF') || src.includes('心房細動')) monitorData.ecg = '心房細動';
     else monitorData.ecg = '洞調律';
   }
+  // ST変化判定（シナリオ記述から推定）
+  if(/ST上昇|ST\s*elev|STEMI|心筋梗塞/i.test(src)) monitorData.st = 'elevation';
+  else if(/ST低下|ST\s*depress|NSTEMI|虚血/i.test(src)) monitorData.st = 'depression';
+  else monitorData.st = 'normal';
 }
 
 function renderMonitorValues(){
@@ -1450,6 +1534,10 @@ async function updateMonitorVitals(){
     else if(reply.includes('頻脈')) monitorData.ecg='頻脈';
     else if(reply.includes('徐脈')) monitorData.ecg='徐脈';
     else if(reply.includes('洞')) monitorData.ecg='洞調律';
+    // ST変化の検出（AI応答から）
+    if(/ST上昇|STEMI|心筋梗塞/i.test(reply)) monitorData.st='elevation';
+    else if(/ST低下|NSTEMI|虚血/i.test(reply)) monitorData.st='depression';
+    else monitorData.st='normal';
     renderMonitorValues();
     // モニター更新時は音声応答しない（ユーザー要望）
     toast('📟 モニター値を更新しました');
@@ -1476,21 +1564,24 @@ function startEcgAnimation(){
     ctx.putImageData(imgData, 0, 0);
     ctx.clearRect(W-1, 0, 1, H);
 
-    // ECG waveform pattern (simple QRS simulation)
+    // ECG waveform pattern (simple QRS + ST segment)
     const cycle = Math.round(60000 / hrNum / 16);
     const pos = ecgX % cycle;
-    let y = H/2;
     const p = pos / cycle;
-    if(p < 0.05) y = H/2 - 4;           // P wave
+    // ST偏位量: elevation=上向き(Y減少), depression=下向き(Y増加)
+    const stShift = monitorData.st==='elevation' ? -10
+                  : monitorData.st==='depression' ? 8 : 0;
+    let y = H/2;
+    if(p < 0.05) y = H/2 - 4;                         // P wave
     else if(p < 0.10) y = H/2;
-    else if(p < 0.12) y = H/2 + 14;     // Q dip
-    else if(p < 0.15) y = H/2 - H*0.7;  // R spike
-    else if(p < 0.18) y = H/2 + 10;     // S dip
-    else if(p < 0.22) y = H/2;
-    else if(p < 0.35) y = H/2 - 6;      // T wave
-    else y = H/2;
-
+    else if(p < 0.12) y = H/2 + 14;                   // Q dip
+    else if(p < 0.15) y = H/2 - H*0.7;                // R spike
+    else if(p < 0.18) y = H/2 + 10;                   // S dip
+    else if(p < 0.28) y = H/2 + stShift;              // ST segment (偏位反映)
+    else if(p < 0.42) y = H/2 - 6 + stShift*0.5;      // T wave（ST偏位時はやや連動）
+    else y = H/2 + stShift*0.2;                       // 基線もわずかに追従
     ctx.strokeStyle = '#00ff88';
+
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(W-2, prevY);
@@ -1508,6 +1599,251 @@ function startEcgAnimation(){
   loop();
 }
 
+// ===== 12誘導ECG (静的スナップショット描画 = 負荷小) =====
+const LEAD_SPECS = [
+  {id:'lead_I',   label:'I',   mult:1.0,  aVR:false},
+  {id:'lead_aVR', label:'aVR', mult:-0.8, aVR:true },
+  {id:'lead_V1',  label:'V1',  mult:-0.3, aVR:false},
+  {id:'lead_V4',  label:'V4',  mult:0.9,  aVR:false},
+  {id:'lead_II',  label:'II',  mult:1.1,  aVR:false},
+  {id:'lead_aVL', label:'aVL', mult:0.5,  aVR:false},
+  {id:'lead_V2',  label:'V2',  mult:-0.1, aVR:false},
+  {id:'lead_V5',  label:'V5',  mult:1.1,  aVR:false},
+  {id:'lead_III', label:'III', mult:0.6,  aVR:false},
+  {id:'lead_aVF', label:'aVF', mult:0.7,  aVR:false},
+  {id:'lead_V3',  label:'V3',  mult:0.5,  aVR:false},
+  {id:'lead_V6',  label:'V6',  mult:0.9,  aVR:false}
+];
+function show12Lead(){
+  const ov = document.getElementById('lead12Overlay');
+  if(!ov) return;
+  ov.style.display = 'flex';
+  LEAD_SPECS.forEach(L=>drawLeadWaveform(L));
+}
+function close12Lead(){
+  const ov = document.getElementById('lead12Overlay');
+  if(ov) ov.style.display = 'none';
+}
+function drawLeadWaveform(spec){
+  const c = document.getElementById(spec.id);
+  if(!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  // 背景クリア
+  ctx.fillStyle = '#02110a';
+  ctx.fillRect(0,0,W,H);
+  // グリッド（方眼紙風）
+  ctx.strokeStyle = '#0f3020';
+  ctx.lineWidth = 0.5;
+  for(let x=0;x<W;x+=10){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=10){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  // 誘導ラベル
+  ctx.fillStyle = '#00d4ff';
+  ctx.font = 'bold 10px Share Tech Mono, monospace';
+  ctx.fillText(spec.label, 4, 11);
+  // 波形パラメータ
+  const hrNum = parseInt(monitorData.hr) || 80;
+  const beats = 2.5;
+  const ptsPerBeat = Math.floor(W / beats);
+  const mult = spec.mult;
+  // ST偏位（aVRは他誘導と逆方向に表れる＝ミラー）
+  const stSign = spec.aVR ? -1 : 1;
+  const stBase = monitorData.st==='elevation' ? -10*stSign
+               : monitorData.st==='depression' ? 8*stSign : 0;
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  for(let x=0;x<W;x++){
+    const pos = x % ptsPerBeat;
+    const p = pos / ptsPerBeat;
+    let y = H/2;
+    if(p<0.05) y = H/2 - 3*mult;                    // P波
+    else if(p<0.10) y = H/2;
+    else if(p<0.12) y = H/2 + 5*Math.sign(mult||1); // Q
+    else if(p<0.15) y = H/2 - (H*0.45)*mult;        // R
+    else if(p<0.18) y = H/2 + 5*Math.sign(mult||1); // S
+    else if(p<0.28) y = H/2 + stBase;               // ST
+    else if(p<0.42) y = H/2 - 5*mult + stBase*0.5;  // T
+    else y = H/2 + stBase*0.2;
+    if(x===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+
+// ============================================================
+// 傷病者の音（Phase1 初期評価用：脈拍ビープ + 呼吸音）
+// ============================================================
+let patientAudio = {
+  ctx: null,
+  pulseTimer: null,
+  breathTimer: null,
+  playing: false,
+  cpa: false,
+  weakPulse: false,
+  breathType: 'normal' // normal / snoring / tachy / brady / ataxic / none
+};
+
+function togglePatientAudio(){
+  if(patientAudio.playing){
+    stopPatientAudio();
+    toast('🔇 傷病者音を停止');
+  } else {
+    startPatientAudio();
+    toast('🔊 傷病者音を再生中');
+  }
+}
+
+function parsePatientAudioState(){
+  const s = (scenario && scenario.v1) ? scenario.v1 : '';
+  const hr = parseInt(monitorData.hr);
+  const rr = parseInt(monitorData.rr);
+  const sbp = parseInt((monitorData.bp||'').split('/')[0]);
+  // CPA判定
+  patientAudio.cpa = (hr===0) || /心肺停止|CPA|心停止|脈なし|脈触知不能|脈拍なし/i.test(s);
+  // 橈骨微弱判定（低血圧 or 明示）
+  patientAudio.weakPulse = /橈骨.{0,6}微弱|微弱な脈|触知困難|弱い脈/i.test(s) || (!isNaN(sbp) && sbp<90);
+  // 呼吸タイプ
+  if(/いびき|気道閉塞|舌根沈下|スノーリング/i.test(s)) patientAudio.breathType='snoring';
+  else if(/失調性|下顎呼吸|あえぎ|死戦期|agonal|gasping/i.test(s)) patientAudio.breathType='ataxic';
+  else if(/頻呼吸|浅速/i.test(s) || (!isNaN(rr) && rr>24)) patientAudio.breathType='tachy';
+  else if(/徐呼吸/i.test(s) || (!isNaN(rr) && rr<10 && rr>0)) patientAudio.breathType='brady';
+  else patientAudio.breathType = 'normal';
+  // 呼吸停止
+  if(patientAudio.cpa || /呼吸なし|呼吸停止|無呼吸/i.test(s) || rr===0) patientAudio.breathType='none';
+}
+
+function ensureAudioCtx(){
+  if(!patientAudio.ctx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return false;
+    patientAudio.ctx = new AC();
+  }
+  if(patientAudio.ctx.state === 'suspended') patientAudio.ctx.resume();
+  return true;
+}
+
+function startPatientAudio(){
+  if(!ensureAudioCtx()){ toast('このブラウザは音声生成に非対応'); return; }
+  stopPatientAudio();
+  parsePatientAudioState();
+  patientAudio.playing = true;
+  const ab = document.getElementById('assessBtn');
+  if(ab){ ab.style.background='rgba(255,60,60,0.25)'; ab.textContent='🔇 傷病者音を停止'; }
+  scheduleNextPulse();
+  scheduleNextBreath();
+}
+
+function stopPatientAudio(){
+  patientAudio.playing = false;
+  if(patientAudio.pulseTimer){ clearTimeout(patientAudio.pulseTimer); patientAudio.pulseTimer=null; }
+  if(patientAudio.breathTimer){ clearTimeout(patientAudio.breathTimer); patientAudio.breathTimer=null; }
+  const ab = document.getElementById('assessBtn');
+  if(ab){ ab.style.background='rgba(255,200,50,0.15)'; ab.textContent='🔊 傷病者の音'; }
+}
+
+function playPulseBeep(){
+  if(!patientAudio.ctx || !patientAudio.playing || patientAudio.cpa) return;
+  const ctx = patientAudio.ctx;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 880; // モニター風ビープ音
+  const vol = patientAudio.weakPulse ? 0.07 : 0.28;
+  const now = ctx.currentTime;
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(vol, now + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.11);
+}
+
+function scheduleNextPulse(){
+  if(!patientAudio.playing) return;
+  const hr = parseInt(monitorData.hr) || 80;
+  if(patientAudio.cpa || hr<=0){
+    patientAudio.pulseTimer = setTimeout(scheduleNextPulse, 1000);
+    return;
+  }
+  playPulseBeep();
+  const interval = Math.max(250, 60000 / hr);
+  patientAudio.pulseTimer = setTimeout(scheduleNextPulse, interval);
+}
+
+function playBreathCycle(type){
+  if(!patientAudio.ctx || !patientAudio.playing) return;
+  if(type==='none') return;
+  const ctx = patientAudio.ctx;
+  // ホワイトノイズバッファ生成（呼吸音の基）
+  const sampleRate = ctx.sampleRate;
+  const duration = 3.0;
+  const bufSize = Math.floor(sampleRate * duration);
+  const buf = ctx.createBuffer(1, bufSize, sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<bufSize;i++) data[i] = Math.random()*2 - 1;
+  const bufSrc = ctx.createBufferSource();
+  bufSrc.buffer = buf;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  const gain = ctx.createGain();
+  bufSrc.connect(filter).connect(gain).connect(ctx.destination);
+  const now = ctx.currentTime;
+  let inhaleDur, exhaleDur, peakVol, freq, q;
+  if(type==='snoring'){
+    freq = 160; q = 3.0; peakVol = 0.14;
+    inhaleDur = 1.3; exhaleDur = 1.0;
+  } else if(type==='ataxic'){
+    freq = 420; q = 1.2; peakVol = 0.16;
+    inhaleDur = 0.35; exhaleDur = 0.25;
+  } else if(type==='tachy'){
+    freq = 520; q = 1.0; peakVol = 0.05;
+    inhaleDur = 0.45; exhaleDur = 0.55;
+  } else if(type==='brady'){
+    freq = 480; q = 1.0; peakVol = 0.05;
+    inhaleDur = 1.8; exhaleDur = 2.0;
+  } else { // normal
+    freq = 500; q = 1.0; peakVol = 0.05;
+    inhaleDur = 1.0; exhaleDur = 1.2;
+  }
+  filter.frequency.value = freq;
+  filter.Q.value = q;
+  gain.gain.setValueAtTime(0, now);
+  // 吸気
+  gain.gain.linearRampToValueAtTime(peakVol, now + inhaleDur*0.45);
+  gain.gain.linearRampToValueAtTime(0.0005, now + inhaleDur);
+  // 呼気（やや低音量）
+  gain.gain.linearRampToValueAtTime(peakVol*0.7, now + inhaleDur + exhaleDur*0.35);
+  gain.gain.linearRampToValueAtTime(0.0001, now + inhaleDur + exhaleDur);
+  bufSrc.start(now);
+  bufSrc.stop(now + inhaleDur + exhaleDur + 0.05);
+}
+
+function scheduleNextBreath(){
+  if(!patientAudio.playing) return;
+  const type = patientAudio.breathType;
+  if(type==='none'){
+    patientAudio.breathTimer = setTimeout(scheduleNextBreath, 1500);
+    return;
+  }
+  playBreathCycle(type);
+  const rr = parseInt(monitorData.rr) || 16;
+  let cycleMs;
+  if(type==='ataxic'){
+    // 失調性：不規則（2〜9秒）
+    cycleMs = 2000 + Math.random()*7000;
+  } else if(type==='snoring'){
+    cycleMs = Math.max(2800, 60000/Math.max(rr, 8));
+  } else if(type==='tachy'){
+    cycleMs = Math.max(1100, 60000/Math.max(rr, 20));
+  } else if(type==='brady'){
+    cycleMs = Math.max(4500, 60000/Math.max(rr, 4));
+  } else { // normal
+    cycleMs = Math.max(2200, 60000/Math.max(rr, 10));
+  }
+  patientAudio.breathTimer = setTimeout(scheduleNextBreath, cycleMs);
+}
+
 function confirmEnd(){
   const dlg = document.getElementById('endConfirm');
   if(dlg) dlg.style.display='flex';
@@ -1516,6 +1852,7 @@ function confirmEnd(){
 function endTraining(){
   stopAlwaysOn();
   stopSpeak();
+  if(typeof stopPatientAudio==='function') stopPatientAudio();
   clearInterval(timerInterval);
   document.getElementById('totalTime').textContent=formatTime(timerSec);
   document.getElementById('fullLog').innerHTML=document.getElementById('chatLog').innerHTML;
@@ -1530,8 +1867,11 @@ function endTraining(){
 function backToSetup(){
   stopAlwaysOn();
   stopSpeak();
+  if(typeof stopPatientAudio==='function') stopPatientAudio();
   clearInterval(timerInterval);
   timerSec=0;
+  currentPhase = 0;
+  document.body.classList.remove('training-on');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel0').classList.add('active');
   for(let i=0;i<=4;i++) document.getElementById('ph'+i).className='ph-step';
@@ -1970,6 +2310,9 @@ async function send(){
   if(!txt)return;
   document.getElementById('txtIn').value='';
   document.getElementById('micTx').textContent='';
+  // 送信直後から TTS再生完了まで待受を抑制
+  isSpeaking = true;
+  try{ if(aonRecog){ aonRecog.abort(); } }catch(_){};'';
 
   // ★ タップのコンテキスト内で音声ロック解除 & 準備
   unlockAudio();
@@ -2000,6 +2343,8 @@ async function send(){
   }catch(e){
     removeThinking(tid);
     addSys('エラー: '+e.message);
+    // 失敗時は待受を再開できるよう isSpeaking を落とす
+    setTimeout(()=>{ isSpeaking=false; }, 300);
   }
 }
 
@@ -2167,6 +2512,12 @@ function startAlwaysOn(){
 function aonLoop(){
   if(!alwaysOn) return;
   if(isRec) { setTimeout(aonLoop, 500); return; } // 手動録音中は待機
+  if(isSpeaking) {
+    // TTS再生中は認識を上げない。500ms毎にチェック
+    setAonState('listening');
+    setAonText('🔇 応答読み上げ中... 再生が終わるまで待機');
+    setTimeout(aonLoop, 500); return;
+  }
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR) return;
@@ -2403,11 +2754,23 @@ function speakQueued(text, role){
     u.pitch = preset.pitch;
     const v = pickVoiceForRole(voices, role);
     if(v) u.voice = v;
-    u.onstart = ()=>{ isSpeaking=true; const b=document.getElementById('speakBar'); if(b) b.classList.add('on'); };
-    u.onend   = ()=>{ isSpeaking=false; const b=document.getElementById('speakBar'); if(b) b.classList.remove('on'); };
-    u.onerror = ()=>{ isSpeaking=false; const b=document.getElementById('speakBar'); if(b) b.classList.remove('on'); };
+    u.onstart = ()=>{
+      isSpeaking=true;
+      const b=document.getElementById('speakBar'); if(b) b.classList.add('on');
+      // TTS開始時に待受認識を即停止（ハウリング＆誤認識防止）
+      try{ if(aonRecog){ aonRecog.abort(); } }catch(_){}
+    };
+    u.onend   = ()=>{
+      const b=document.getElementById('speakBar'); if(b) b.classList.remove('on');
+      // TTS終了後、スピーカーの残響が収まるまで 700ms 待ってから認識再開
+      setTimeout(()=>{ isSpeaking=false; }, 700);
+    };
+    u.onerror = ()=>{
+      const b=document.getElementById('speakBar'); if(b) b.classList.remove('on');
+      setTimeout(()=>{ isSpeaking=false; }, 300);
+    };
     window.speechSynthesis.speak(u);
-  }catch(e){ console.warn('speakQueued error:', e); }
+  }catch(e){ console.warn('speakQueued error:', e); setTimeout(()=>{isSpeaking=false;},300); }
 }
 
 function speak(text, role){
@@ -2433,11 +2796,21 @@ function _doSpeak(text, attempt, role){
     u.pitch = preset.pitch;
     const v = pickVoiceForRole(voices, role);
     if(v) u.voice = v;
-    u.onstart = ()=>{ isSpeaking=true; const b=document.getElementById('speakBar'); if(b) b.classList.add('on'); };
-    u.onend   = ()=>{ isSpeaking=false; const b=document.getElementById('speakBar'); if(b) b.classList.remove('on'); };
-    u.onerror = ()=>{ isSpeaking=false; const b=document.getElementById('speakBar'); if(b) b.classList.remove('on'); };
+    u.onstart = ()=>{
+      isSpeaking=true;
+      const b=document.getElementById('speakBar'); if(b) b.classList.add('on');
+      try{ if(aonRecog){ aonRecog.abort(); } }catch(_){}
+    };
+    u.onend   = ()=>{
+      const b=document.getElementById('speakBar'); if(b) b.classList.remove('on');
+      setTimeout(()=>{ isSpeaking=false; }, 700);
+    };
+    u.onerror = ()=>{
+      const b=document.getElementById('speakBar'); if(b) b.classList.remove('on');
+      setTimeout(()=>{ isSpeaking=false; }, 300);
+    };
     window.speechSynthesis.speak(u);
-  }catch(e){ console.warn('speak error:', e); }
+  }catch(e){ console.warn('speak error:', e); setTimeout(()=>{isSpeaking=false;},300); }
 }
 
 function stopSpeak(){
