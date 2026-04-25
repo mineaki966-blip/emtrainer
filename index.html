@@ -852,19 +852,20 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
       <div style="padding:14px;">
         <div style="font-size:11px;color:#5a7a9a;margin-bottom:6px;">受信先科目を選択</div>
-        <div id="deptList" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;"></div>
+        <div id="deptList" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;"></div>
 
-        <div id="callStateBox" style="background:#02101e;border:1px solid #1a3a5a;border-radius:8px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:12px;color:#5a7a9a;min-height:80px;margin-bottom:10px;">
-          <div id="callStateLine" style="color:#00d4ff;margin-bottom:6px;">📵 待機中（科目を選び、通話開始）</div>
-          <div id="callTranscript" style="color:#a0c0e0;line-height:1.6;white-space:pre-wrap;font-size:11px;"></div>
-        </div>
-
+        <!-- 通話開始/停止ボタン：科目の直下に常時表示 -->
         <div style="display:flex;gap:8px;margin-bottom:10px;">
           <button id="callStartBtn" onclick="startCallRecord()" style="flex:1;padding:12px;border-radius:8px;border:1px solid #00ff88;background:rgba(0,255,136,0.15);color:#00ff88;font-weight:700;cursor:pointer;font-size:13px;">📞 通話開始</button>
           <button id="callStopBtn" onclick="stopCallAndAsk()" disabled style="flex:1;padding:12px;border-radius:8px;border:1px solid #ff3366;background:rgba(255,51,102,0.10);color:#7a4a5a;font-weight:700;cursor:pointer;font-size:13px;opacity:0.5;">⏹ 停止して回答を求める</button>
         </div>
 
-        <div id="callReplyBox" style="display:none;background:#0a2418;border:1px solid #00ff88;border-radius:8px;padding:10px 12px;font-size:13px;color:#a0e0c0;line-height:1.7;"></div>
+        <div id="callStateBox" style="background:#02101e;border:1px solid #1a3a5a;border-radius:8px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:12px;color:#5a7a9a;min-height:60px;max-height:200px;overflow-y:auto;margin-bottom:10px;">
+          <div id="callStateLine" style="color:#00d4ff;margin-bottom:6px;">📵 待機中（科目を選び、通話開始）</div>
+          <div id="callTranscript" style="color:#a0c0e0;line-height:1.6;white-space:pre-wrap;font-size:11px;"></div>
+        </div>
+
+        <div id="callReplyBox" style="display:none;background:#0a2418;border:1px solid #00ff88;border-radius:8px;padding:10px 12px;font-size:13px;color:#a0e0c0;line-height:1.7;max-height:240px;overflow-y:auto;"></div>
       </div>
     </div>
   </div>
@@ -1945,42 +1946,70 @@ function setCallButtonsState(rec){
   }
 }
 
-function startCallRecord(){
+function _createCallRecog(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ toast('このブラウザは音声認識に対応していません'); return; }
-  callState.transcript = '';
-  document.getElementById('callTranscript').textContent = '';
-  document.getElementById('callReplyBox').style.display = 'none';
-  const dept = HOSPITAL_DEPTS.find(d=>d.id===callState.deptId);
-  document.getElementById('callStateLine').textContent = '🔴 通話中（' + (dept?dept.name:'') + '）— 状況を伝えてください';
+  if(!SR) return null;
   const r = new SR();
   r.lang = 'ja-JP';
   r.continuous = true;
   r.interimResults = true;
   r.maxAlternatives = 1;
+  // 各インスタンスごとに独自の処理済みインデックスを保持
+  let lastFinalIdx = 0;
+  r.onstart = ()=>{ lastFinalIdx = 0; };
   r.onresult = e=>{
-    let interim='', final='';
-    for(let i=e.resultIndex; i<e.results.length; i++){
-      if(e.results[i].isFinal) final += e.results[i][0].transcript;
-      else interim += e.results[i][0].transcript;
+    let interim = '';
+    for(let i=0; i<e.results.length; i++){
+      const res = e.results[i];
+      if(res.isFinal){
+        if(i >= lastFinalIdx){
+          callState.transcript += res[0].transcript + ' ';
+          lastFinalIdx = i + 1;
+        }
+      } else {
+        interim += res[0].transcript;
+      }
     }
-    if(final) callState.transcript += final + ' ';
-    document.getElementById('callTranscript').textContent =
-      callState.transcript + (interim ? ('〔' + interim + '〕') : '');
+    const tEl = document.getElementById('callTranscript');
+    if(tEl){
+      tEl.textContent = callState.transcript + (interim ? ('〔' + interim + '〕') : '');
+      // 自動スクロール（最新部分を表示）
+      const box = document.getElementById('callStateBox');
+      if(box) box.scrollTop = box.scrollHeight;
+    }
   };
   r.onerror = e=>{
-    if(e.error==='not-allowed'){ toast('マイク許可が必要です'); }
+    if(e.error==='not-allowed'){ toast('マイク許可が必要です'); callState.recording=false; setCallButtonsState(false); }
   };
   r.onend = ()=>{
     if(callState.recording){
-      // 自動再起動（長い通話を継続させる）
-      try{ r.start(); }catch(_){ callState.recording=false; setCallButtonsState(false); }
+      // 重複防止のため毎回新しいインスタンスで再起動
+      setTimeout(()=>{
+        if(!callState.recording) return;
+        callState.recog = _createCallRecog();
+        if(!callState.recog) return;
+        try{ callState.recog.start(); }catch(_){}
+      }, 120);
     }
   };
-  callState.recog = r;
+  return r;
+}
+
+function startCallRecord(){
+  if(!(window.SpeechRecognition || window.webkitSpeechRecognition)){
+    toast('このブラウザは音声認識に対応していません'); return;
+  }
+  callState.transcript = '';
+  document.getElementById('callTranscript').textContent = '';
+  document.getElementById('callReplyBox').style.display = 'none';
+  const dept = HOSPITAL_DEPTS.find(d=>d.id===callState.deptId);
+  document.getElementById('callStateLine').textContent = '🔴 通話中（' + (dept?dept.name:'') + '）— 状況を伝えてください';
+  callState.recog = _createCallRecog();
+  if(!callState.recog){ toast('音声認識初期化失敗'); return; }
   callState.recording = true;
   setCallButtonsState(true);
-  try{ r.start(); }catch(e){ toast('録音開始に失敗: '+e.message); callState.recording=false; setCallButtonsState(false); }
+  try{ callState.recog.start(); }
+  catch(e){ toast('録音開始に失敗: '+e.message); callState.recording=false; setCallButtonsState(false); }
 }
 
 async function stopCallAndAsk(){
