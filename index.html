@@ -843,6 +843,32 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
   </div>
 
+  <!-- 病院交渉 通話オーバーレイ -->
+  <div id="hospCallOverlay" style="display:none;position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,0.93);align-items:center;justify-content:center;flex-direction:column;">
+    <div style="width:96%;max-width:540px;background:#0a1828;border:2px solid #2a4a70;border-radius:12px;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f2438;border-bottom:2px solid #2a4a70;">
+        <span style="font-size:13px;font-weight:700;color:#00d4ff;letter-spacing:0.1em;">📞 病院交渉</span>
+        <button onclick="closeHospitalCall()" style="background:transparent;border:none;color:#5a7a9a;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+      </div>
+      <div style="padding:14px;">
+        <div style="font-size:11px;color:#5a7a9a;margin-bottom:6px;">受信先科目を選択</div>
+        <div id="deptList" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;"></div>
+
+        <div id="callStateBox" style="background:#02101e;border:1px solid #1a3a5a;border-radius:8px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:12px;color:#5a7a9a;min-height:80px;margin-bottom:10px;">
+          <div id="callStateLine" style="color:#00d4ff;margin-bottom:6px;">📵 待機中（科目を選び、通話開始）</div>
+          <div id="callTranscript" style="color:#a0c0e0;line-height:1.6;white-space:pre-wrap;font-size:11px;"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <button id="callStartBtn" onclick="startCallRecord()" style="flex:1;padding:12px;border-radius:8px;border:1px solid #00ff88;background:rgba(0,255,136,0.15);color:#00ff88;font-weight:700;cursor:pointer;font-size:13px;">📞 通話開始</button>
+          <button id="callStopBtn" onclick="stopCallAndAsk()" disabled style="flex:1;padding:12px;border-radius:8px;border:1px solid #ff3366;background:rgba(255,51,102,0.10);color:#7a4a5a;font-weight:700;cursor:pointer;font-size:13px;opacity:0.5;">⏹ 停止して回答を求める</button>
+        </div>
+
+        <div id="callReplyBox" style="display:none;background:#0a2418;border:1px solid #00ff88;border-radius:8px;padding:10px 12px;font-size:13px;color:#a0e0c0;line-height:1.7;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- 12-LEAD ECG OVERLAY (静的スナップショット) -->
   <div id="lead12Overlay" style="display:none;position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,0.95);align-items:center;justify-content:center;flex-direction:column;">
     <div style="width:96%;max-width:760px;background:#0a1a10;border:2px solid #0f3020;border-radius:10px;">
@@ -1845,6 +1871,178 @@ function scheduleNextBreath(){
 }
 
 // ============================================================
+// 病院交渉（通話モード）
+// ============================================================
+const HOSPITAL_DEPTS = [
+  {id:'er',        name:'救急科',     scope:'外傷・急変・原因不明の急性疾患・複数科にまたがる救急全般。基本的に救急患者は受入対象。'},
+  {id:'cardio',    name:'循環器内科', scope:'心筋梗塞・狭心症・不整脈・心不全・胸痛・動悸・大動脈解離疑い'},
+  {id:'neurosurg', name:'脳神経外科', scope:'頭部外傷・脳出血・くも膜下出血・急性硬膜下/硬膜外血腫・頭蓋内出血'},
+  {id:'neuro',     name:'神経内科',   scope:'脳梗塞・痙攣・てんかん・意識障害・片麻痺・髄膜炎'},
+  {id:'ortho',     name:'整形外科',   scope:'四肢の骨折・脱臼・打撲・捻挫・脊椎外傷'},
+  {id:'gi-int',    name:'消化器内科', scope:'腹痛・吐血・下血・消化管出血・肝胆膵急性疾患（手術不要）'},
+  {id:'gi-surg',   name:'消化器外科', scope:'急性腹症（手術適応）・虫垂炎・腸閉塞・腹腔内出血・腹部外傷'},
+  {id:'obgyn',     name:'産婦人科',   scope:'妊娠関連・分娩・性器出血・切迫流産・婦人科疾患'},
+  {id:'peds',      name:'小児科',     scope:'15歳未満の小児疾患・小児発熱・痙攣・熱性けいれん'},
+  {id:'psych',     name:'精神科',     scope:'精神疾患・自殺企図（既遂後の身体救急は対象外）・興奮・措置入院'},
+  {id:'resp',      name:'呼吸器内科', scope:'肺炎・喘息発作・気胸・COPD増悪・呼吸困難（心原性除く）'},
+  {id:'urol',      name:'泌尿器科',   scope:'尿路結石・血尿・尿閉・精巣捻転'}
+];
+let callState = {
+  active: false,        // オーバーレイ表示中
+  recording: false,     // 録音中
+  recog: null,
+  transcript: '',
+  deptId: 'er'
+};
+
+function openHospitalCall(){
+  document.getElementById('hospCallOverlay').style.display='flex';
+  callState.active = true;
+  callState.transcript = '';
+  callState.recording = false;
+  document.getElementById('callTranscript').textContent = '';
+  document.getElementById('callReplyBox').style.display = 'none';
+  document.getElementById('callReplyBox').textContent = '';
+  document.getElementById('callStateLine').textContent = '📵 待機中（科目を選び、通話開始）';
+  setCallButtonsState(false);
+  renderDeptList();
+  // 通話中は天の声待受を一時停止
+  if(typeof aonRecog!=='undefined' && aonRecog){ try{aonRecog.abort();}catch(_){} }
+}
+
+function closeHospitalCall(){
+  if(callState.recording){ try{ callState.recog && callState.recog.abort(); }catch(_){} }
+  callState.active = false;
+  callState.recording = false;
+  document.getElementById('hospCallOverlay').style.display='none';
+}
+
+function renderDeptList(){
+  const el = document.getElementById('deptList');
+  el.innerHTML = HOSPITAL_DEPTS.map(d=>{
+    const sel = d.id===callState.deptId;
+    const bg = sel ? 'rgba(0,212,255,0.18)' : '#0f2030';
+    const bc = sel ? '#00d4ff' : '#1a3a5a';
+    const tc = sel ? '#00d4ff' : '#7a9ac0';
+    return `<button onclick="selectDept('${d.id}')" style="padding:8px 4px;border-radius:6px;border:1px solid ${bc};background:${bg};color:${tc};font-size:11px;font-weight:600;cursor:pointer;">${d.name}</button>`;
+  }).join('');
+}
+function selectDept(id){
+  if(callState.recording) return; // 通話中は変更不可
+  callState.deptId = id;
+  renderDeptList();
+}
+
+function setCallButtonsState(rec){
+  const sb = document.getElementById('callStartBtn');
+  const eb = document.getElementById('callStopBtn');
+  if(rec){
+    sb.disabled = true;  sb.style.opacity = '0.4';  sb.textContent = '🔴 通話中';
+    eb.disabled = false; eb.style.opacity = '1';
+  } else {
+    sb.disabled = false; sb.style.opacity = '1';   sb.textContent = '📞 通話開始';
+    eb.disabled = true;  eb.style.opacity = '0.5';
+  }
+}
+
+function startCallRecord(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast('このブラウザは音声認識に対応していません'); return; }
+  callState.transcript = '';
+  document.getElementById('callTranscript').textContent = '';
+  document.getElementById('callReplyBox').style.display = 'none';
+  const dept = HOSPITAL_DEPTS.find(d=>d.id===callState.deptId);
+  document.getElementById('callStateLine').textContent = '🔴 通話中（' + (dept?dept.name:'') + '）— 状況を伝えてください';
+  const r = new SR();
+  r.lang = 'ja-JP';
+  r.continuous = true;
+  r.interimResults = true;
+  r.maxAlternatives = 1;
+  r.onresult = e=>{
+    let interim='', final='';
+    for(let i=e.resultIndex; i<e.results.length; i++){
+      if(e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    if(final) callState.transcript += final + ' ';
+    document.getElementById('callTranscript').textContent =
+      callState.transcript + (interim ? ('〔' + interim + '〕') : '');
+  };
+  r.onerror = e=>{
+    if(e.error==='not-allowed'){ toast('マイク許可が必要です'); }
+  };
+  r.onend = ()=>{
+    if(callState.recording){
+      // 自動再起動（長い通話を継続させる）
+      try{ r.start(); }catch(_){ callState.recording=false; setCallButtonsState(false); }
+    }
+  };
+  callState.recog = r;
+  callState.recording = true;
+  setCallButtonsState(true);
+  try{ r.start(); }catch(e){ toast('録音開始に失敗: '+e.message); callState.recording=false; setCallButtonsState(false); }
+}
+
+async function stopCallAndAsk(){
+  if(!callState.recording) return;
+  callState.recording = false;
+  try{ callState.recog && callState.recog.abort(); }catch(_){}
+  setCallButtonsState(false);
+  document.getElementById('callStateLine').textContent = '🔄 医師に確認中...';
+  const transcript = (callState.transcript||'').trim();
+  if(!transcript){
+    document.getElementById('callStateLine').textContent = '⚠ 通話内容が記録されていません';
+    return;
+  }
+  if(!apiKey){ toast('APIキーを設定してください'); return; }
+  const dept = HOSPITAL_DEPTS.find(d=>d.id===callState.deptId) || HOSPITAL_DEPTS[0];
+  const sys = buildHospitalCallPrompt(dept);
+  try{
+    const reply = await callAI(sys, [{role:'user', content:transcript}]);
+    document.getElementById('callStateLine').textContent = '✅ 医師の回答（' + dept.name + '）';
+    const box = document.getElementById('callReplyBox');
+    box.style.display = 'block';
+    box.textContent = reply;
+    addMsg('hospital', '病院('+dept.name+')', reply, transcript, phaseLabels[currentPhase]||'');
+    try{ maybeAlertOnReply(reply); }catch(_){}
+    speakQueued(reply, 'hospital');
+  }catch(e){
+    document.getElementById('callStateLine').textContent = '❌ エラー: ' + e.message;
+  }
+}
+
+function buildHospitalCallPrompt(dept){
+  const baseInfo = scenario ? `
+【シナリオ基本情報】
+名称：${scenario.name}
+患者：${scenario.age} ${scenario.sex}　主訴：${scenario.chief}
+現場：${scenario.scene}
+現在フェーズ：${phaseLabels[currentPhase]||''}
+` : '';
+  return `あなたは「${dept.name}」の当直医師です。救急隊から受け入れ要請の電話を受けています。
+${baseInfo}
+【あなたの担当領域】
+${dept.scope}
+
+【最重要ルール — 必ずこの順で判定】
+1) **科目ミスマッチ判定**：救急隊が伝えた主訴・病態が、明らかに当科（${dept.name}）の対象外である場合：
+   「申し訳ありません、当院の${dept.name}では対応困難です。○○科をご検討ください。」と1〜2文で**断る**。
+   （例：心筋梗塞 → 整形外科にかかってきた → 拒否）
+   ただし「救急科」は基本的に救急全般を受け入れるため、明らかな単科専門以外は受入対象。
+
+2) **情報不足判定**：科目は適切だが、判断に必要な情報（年齢／主訴／バイタル／意識／処置内容／到着予定時刻 等）が不足している場合：
+   不足項目を**1つだけ**短く聞き返す（例：「バイタルを教えてください」「意識レベルは？」）。
+
+3) **受け入れ承諾**：科目が適切で情報も揃っている場合：
+   「受け入れ可能です。○○分後に到着でよろしいですね。」と簡潔に承諾。
+
+【回答スタイル】
+・1〜2文。実際の受入医師のように落ち着いた口調。
+・前置き・冗長な説明は不要。
+・自分から余計な情報や指示は出さない。`;
+}
+
+// ============================================================
 // 容態変化アラーム
 // ============================================================
 function detectConditionChange(text){
@@ -1945,6 +2143,10 @@ function formatTime(s){
 // ============================================================
 function selRole(r){
   currentRole=r;
+  // 病院役を選択 → 通話画面を自動オープン
+  if(r==='hospital' && typeof openHospitalCall==='function' && document.getElementById('hospCallOverlay')){
+    setTimeout(openHospitalCall, 50);
+  }
   document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('sel'));
   document.querySelector(`.role-card[data-r="${r}"]`).classList.add('sel');
 }
@@ -2627,6 +2829,12 @@ function aonLoop(){
           aonGateRole = newRole;
           if(newRole !== currentRole){ selRole(newRole); }
           addSys('🎯 天の声 ON：' + roleLabels[newRole]);
+
+          // 病院モードは専用の通話画面で操作する（自動送信しない）
+          if(newRole === 'hospital'){
+            setAonText('📞 病院交渉画面を開きました — 科目選択→通話開始へ');
+            return;
+          }
 
           let q = trimmed
             .replace(/(天の声|てんのこえ|テンノコエ)/g,'')
