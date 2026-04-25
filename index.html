@@ -1844,6 +1844,46 @@ function scheduleNextBreath(){
   patientAudio.breathTimer = setTimeout(scheduleNextBreath, cycleMs);
 }
 
+// ============================================================
+// 容態変化アラーム
+// ============================================================
+function detectConditionChange(text){
+  if(!text) return false;
+  const re = /悪化|増悪|意識(レベル)?(低下|消失|なし|障害)|JCS\s*[12]\d{2}|GCS\s*[3-8]\b|血圧(低下|急降下)|ショック|心停止|心肺停止|CPA|脈拍消失|脈拍触知不能|呼吸停止|無呼吸|チアノーゼ(拡大|増強|出現)|SpO2[^0-9]*([5-7]\d|8[0-4])|徐脈(進行|出現)|失神|意識(消失|失う)|痙攣(出現|発作)/i;
+  return re.test(text);
+}
+
+function playAlertAlarm(){
+  if(!ensureAudioCtx()) return;
+  const ctx = patientAudio.ctx;
+  const now = ctx.currentTime;
+  const tones = [
+    {f:1000, t:0.00},
+    {f:760,  t:0.22},
+    {f:1000, t:0.44}
+  ];
+  tones.forEach(tone=>{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = tone.f;
+    gain.gain.setValueAtTime(0, now+tone.t);
+    gain.gain.linearRampToValueAtTime(0.22, now+tone.t+0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0008, now+tone.t+0.18);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now+tone.t);
+    osc.stop(now+tone.t+0.2);
+  });
+}
+
+function maybeAlertOnReply(reply){
+  if(detectConditionChange(reply)){
+    playAlertAlarm();
+    toast('容態変化を検知');
+    addSys('⚠️ 容態変化の可能性 — モニター確認');
+  }
+}
+
 function confirmEnd(){
   const dlg = document.getElementById('endConfirm');
   if(dlg) dlg.style.display='flex';
@@ -1966,9 +2006,16 @@ ${baseInfo}
 【このフェーズのバイタル・観察所見】
 ${pd.vital}
 
-隊員が測定・観察した結果を数値と所見のみで端的に答えてください。
-回答は数値と観察所見だけ。説明・コメント・前置き一切不要。
-例：「BP 90/60、HR 120、SpO2 90%、GCS 12。顔面蒼白、冷汗あり。」のように箇条書き風に。`,
+【最重要ルール】
+・隊員が**質問した項目だけ**を答える。聞かれていない項目は絶対に答えない。
+・前置き・補足・コメント・「他は」などの追加情報は一切不要。
+・数値のみで端的に答える。
+
+例1：「HRは？」→「HR 120」
+例2：「血圧」→「BP 90/60」
+例3：「SpO2と呼吸数」→「SpO2 90%、RR 24」
+例4：「バイタル全部」→ 全項目を箇条書きで簡潔に。
+例5：「測定しました」→「何を測定しましたか？」と1問返す。`,
 
     response: `あなたは救急訓練シミュレーションの処置反応担当です。
 ${baseInfo}
@@ -1985,8 +2032,11 @@ ${baseInfo}
 病院名：${scenario.hosp}
 ${scenario.hosp_info}
 
-救急隊員からの受け入れ交渉の電話を受けてください。
-受け入れ可否・条件・確認事項を医療者として現実的に2〜3文で答えてください。`,
+【最重要ルール】
+・最初に**受け入れ可否のみ**を端的に答える（例：「受け入れ可能です」「現状、受け入れ困難です」）。
+・判断に必要な情報が不足している場合は、**1つだけ短く聞き返す**（例：「年齢と主訴を教えてください」「バイタルは？」）。
+・冗長な医療説明や前置きは不要。実際の受入医師のように1〜2文で簡潔に。
+・搬送中の追加情報は受け止めて、次の質問または可否再判断を行う。`,
 
     doctor: `あなたは救急医療の専門医です。
 ${baseInfo}
@@ -2338,7 +2388,7 @@ async function send(){
     removeThinking(tid);
     chatHistory.push({role:'assistant',content:reply});
     addMsg(currentRole, roleLabels[currentRole], reply, txt, phaseLabels[currentPhase]||'');
-    // キューに積んだ後なので再生できる
+    try{ maybeAlertOnReply(reply); }catch(_){}
     speakQueued(reply);
   }catch(e){
     removeThinking(tid);
@@ -2443,6 +2493,9 @@ function clearLog(){chatHistory=[];document.getElementById('chatLog').innerHTML=
 let wakeWords = JSON.parse(localStorage.getItem('emwakewords')||'["天の声","てんのこえ","テンノコエ"]');
 let alwaysOn = false;
 let aonRecog = null;
+// 天の声ゲート: false=待機(隊員雑談を無視), true=会話継続
+let aonGate = false;
+let aonGateRole = null;
 let aonRestarting = false;
 
 // Keyword → role mapping
@@ -2531,9 +2584,7 @@ function aonLoop(){
 
     aonRecog.onstart = ()=>{
       setAonState('listening');
-      const nw = document.getElementById('noWakeMode');
-      if(nw && nw.checked) setAonText('待受中... 話しかけてください（ウェイクワード不要）');
-      else setAonText('待受中... 「天の声、〇〇」と話してください');
+      setAonText('待機中... 「天の声、家族／本人／バイタル／病院」と話してください');
     };
 
     aonRecog.onresult = e=>{
@@ -2543,42 +2594,74 @@ function aonLoop(){
         else interim += e.results[i][0].transcript;
       }
       if(interim) setAonText('🎤 ' + interim);
-      if(final){
-        setAonText(final);
-        const trimmed = final.trim();
-        const noWake = document.getElementById('noWakeMode');
-        const autoRole = document.getElementById('autoRoleSwitch');
-        const noWakeOn = noWake ? noWake.checked : true;
-        const autoRoleOn = autoRole ? autoRole.checked : true;
+      if(!final) return;
+      setAonText(final);
+      const trimmed = final.trim();
+      if(!trimmed) return;
+      if(isSpeaking) return;
 
-        const matched = wakeWords.find(w => trimmed.includes(w));
-        let query = '';
-        if(matched){
-          query = trimmed;
-          wakeWords.forEach(w=>{
-            query = query.replace(new RegExp(w+'[、,，。\\s　]*','g'),'').trim();
-          });
-        } else if(noWakeOn){
-          // ウェイクワード不要モード：AI応答中でない & 十分な長さがあれば送る
-          if(trimmed.length < 3) { return; }  // 短すぎる独り言は無視
-          if(isSpeaking) { return; }          // AIの音声再生中は無視（ハウリング防止）
-          query = trimmed;
-        }
-        if(query){
-          setAonState('wake-detected');
-          setAonText('✅ 送信: "' + query + '"');
-          if(autoRoleOn){
-            const detectedRole = detectRoleFromText(query);
-            if(detectedRole && detectedRole !== currentRole){
-              selRole(detectedRole);
-              addSys('🎯 役割を自動切換：' + roleLabels[detectedRole]);
-            }
-          }
-          unlockAudio();
-          document.getElementById('txtIn').value = query;
-          setTimeout(()=>{ send(); }, 200);
-        }
+      // ① 終了コマンド
+      if(/(天の声|てんのこえ|テンノコエ).{0,4}終了|会話\s*停止/.test(trimmed)){
+        aonGate = false;
+        aonGateRole = null;
+        addSys('🔚 天の声 OFF（待機モードへ戻りました）');
+        setAonState('listening');
+        setAonText('待機中... 「天の声、〇〇」と話してください');
+        toast('🔇 天の声を終了');
+        return;
       }
+
+      // ② 天の声ウェイクワード
+      const tenRe = /(天の声|てんのこえ|テンノコエ)/;
+      const hasTen = tenRe.test(trimmed);
+      if(hasTen){
+        let newRole = null;
+        if(/家族|目撃/.test(trimmed)) newRole = 'family';
+        else if(/本人|患者/.test(trimmed)) newRole = 'patient';
+        else if(/病院|交渉|搬送先|受け入れ/.test(trimmed)) newRole = 'hospital';
+        else if(/医師|医者|ドクター/.test(trimmed)) newRole = 'doctor';
+        else if(/バイタル|血圧|脈拍|心拍|spo2|spо2|呼吸数|gcs|意識レベル|体温|測定/i.test(trimmed)) newRole = 'vital';
+
+        if(newRole){
+          aonGate = true;
+          aonGateRole = newRole;
+          if(newRole !== currentRole){ selRole(newRole); }
+          addSys('🎯 天の声 ON：' + roleLabels[newRole]);
+
+          let q = trimmed
+            .replace(/(天の声|てんのこえ|テンノコエ)/g,'')
+            .replace(/[、,，。\s　]+/g,' ')
+            .trim();
+          q = q.replace(/(と会話させて|と会話する|と会話したい|交渉|を測定しました|測定しました|お願いします)/g,'').trim();
+
+          if(q.length >= 1){
+            setAonState('wake-detected');
+            setAonText('送信: "' + q + '"');
+            unlockAudio();
+            document.getElementById('txtIn').value = q;
+            setTimeout(()=>{ send(); }, 200);
+          } else {
+            setAonText('🟢 ' + roleLabels[newRole] + ' モード — 続けて話してください');
+          }
+          return;
+        }
+        setAonText('「天の声、家族／本人／バイタル／病院」と続けてください');
+        return;
+      }
+
+      // ③ ゲートが閉じている → 隊員同士の雑談 → 無視
+      if(!aonGate){
+        setAonText('（天の声以外は無視中）: ' + trimmed.slice(0,30));
+        return;
+      }
+
+      // ④ ゲートON：継続会話として送信
+      if(trimmed.length < 2) return;
+      setAonState('wake-detected');
+      setAonText('送信: "' + trimmed + '"');
+      unlockAudio();
+      document.getElementById('txtIn').value = trimmed;
+      setTimeout(()=>{ send(); }, 200);
     };
 
     aonRecog.onerror = e=>{
@@ -2614,10 +2697,12 @@ function restartAon(){
 
 function stopAlwaysOn(){
   alwaysOn = false;
+  aonGate = false;
+  aonGateRole = null;
   aonRestarting = false;
   try{ if(aonRecog){ aonRecog.abort(); aonRecog = null; }}catch(e){}
   setAonState('off');
-  setAonText('「天の声、〇〇〇」と話しかけると自動応答します');
+  setAonText('「天の声、家族／本人／バイタル／病院」で開始、「天の声終了」または「会話停止」で終了');
   setAonToggle(false);
 }
 
