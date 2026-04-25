@@ -377,6 +377,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   border-radius:10px;padding:16px;
   font-size:13px;line-height:1.8;
   white-space:pre-wrap;
+  max-height:60vh;overflow-y:auto;
 }
 .timer-bar{
   display:flex;align-items:center;gap:10px;
@@ -569,6 +570,32 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   .dispatch-text{font-size:15px;}
   .dispatch-siren{font-size:48px;}
 }
+
+/* ===== STRUCTURED VITAL GRID ===== */
+.vital-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:6px 8px;margin:6px 0 10px;
+}
+.vital-grid .vf{display:flex;flex-direction:column;gap:2px;}
+.vital-grid .vf-wide{grid-column:span 4;}
+.vital-grid .vf-half{grid-column:span 2;}
+.vital-grid .vf label{
+  font-size:10px;color:var(--dim);margin:0;letter-spacing:.04em;
+}
+.vital-grid .vf input,
+.vital-grid .vf select,
+.vital-grid .vf textarea{
+  font-size:12px;padding:6px 8px;margin:0;
+  border-radius:5px;border:1px solid var(--border2);
+  background:var(--s2);color:var(--text);
+}
+.vital-grid .vf textarea{min-height:38px;resize:vertical;}
+@media (max-width:480px){
+  .vital-grid{grid-template-columns:repeat(2,1fr);}
+  .vital-grid .vf-wide{grid-column:span 2;}
+  .vital-grid .vf-half{grid-column:span 1;}
+}
+
 </style>
 </head>
 <body>
@@ -711,15 +738,49 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <textarea id="s_p1" placeholder="例：胸が痛い、息ができない、左足が動かない。声は出るが苦痛表情著明。"></textarea>
     <label>家族・目撃者の情報（家族役）</label>
     <textarea id="s_f1" placeholder="例：同乗していた妻。既往歴は高血圧。服薬はアムロジピン5mg。かかりつけは山田内科。"></textarea>
-    <label>バイタル・観察所見（初期）</label>
-    <textarea id="s_v1" placeholder="例：BP 90/60、HR 120、SpO2 90%、GCS E3V4M5。顔面蒼白、胸部打撲痕あり。気道開通。"></textarea>
+    <label>バイタル・観察所見（フェーズ1）— 数値入力</label>
+    <div class="vital-grid">
+      <div class="vf"><label>JCS</label><input type="number" id="vf_jcs_1" min="0" max="300" placeholder="例:10"></div>
+      <div class="vf"><label>呼吸数 (回/分)</label><input type="number" id="vf_rr_1" min="0" max="80" placeholder="例:18"></div>
+      <div class="vf"><label>脈拍 (回/分)</label><input type="number" id="vf_hr_1" min="0" max="250" placeholder="例:96"></div>
+      <div class="vf"><label>体温 (℃)</label><input type="number" id="vf_temp_1" step="0.1" min="20" max="45" placeholder="36.5"></div>
+      <div class="vf"><label>血圧 sys</label><input type="number" id="vf_bps_1" min="0" max="300" placeholder="120"></div>
+      <div class="vf"><label>血圧 dia</label><input type="number" id="vf_bpd_1" min="0" max="200" placeholder="80"></div>
+      <div class="vf"><label>瞳孔径 右(mm)</label><input type="number" id="vf_pupR_1" step="0.5" min="0" max="9" placeholder="3"></div>
+      <div class="vf"><label>瞳孔径 左(mm)</label><input type="number" id="vf_pupL_1" step="0.5" min="0" max="9" placeholder="3"></div>
+      <div class="vf vf-wide"><label>瞳孔・神経異常所見（不動・偏視・対光なし 等）</label><input type="text" id="vf_pupNote_1" placeholder="例:右散大・対光反射なし"></div>
+      <div class="vf vf-wide"><label>心電図波形</label><input type="text" id="vf_ecg_1" placeholder="例:洞性頻脈 / VT / ST上昇 (II,III,aVF)"></div>
+      <div class="vf"><label>嘔吐</label><select id="vf_vomit_1"><option value="">--</option><option>無</option><option>有</option></select></div>
+      <div class="vf"><label>嘔気</label><select id="vf_nausea_1"><option value="">--</option><option>無</option><option>有</option></select></div>
+      <div class="vf"><label>麻痺</label><select id="vf_palsy_1"><option value="">--</option><option>無</option><option>右片麻痺</option><option>左片麻痺</option><option>四肢麻痺</option><option>その他</option></select></div>
+      <div class="vf"><label>出血</label><select id="vf_bleed_1"><option value="">--</option><option>無</option><option>あり(活動性なし)</option><option>あり(活動性あり)</option></select></div>
+      <div class="vf vf-wide"><label>その他所見（顔色・気道・外傷など 自由記述）</label><textarea id="vf_note_1" rows="2" placeholder="例:顔面蒼白、胸部打撲痕あり、気道開通"></textarea></div>
+    </div>
+    <textarea id="s_v1" style="display:none;"></textarea>
 
     <hr>
     <div class="card-hd" style="margin-bottom:10px;"><em>🚑</em>フェーズ②：車内収容後の変化</div>
     <label>患者の変化・訴え</label>
     <textarea id="s_p2" placeholder="例：安静で少し楽になった。痛みは変わらない。意識は保たれている。"></textarea>
-    <label>バイタル変化・追加所見</label>
-    <textarea id="s_v2" placeholder="例：酸素投与でSpO2 94%に改善。BP 85/55、輸液路確保後 BP 95/65。左大腿部腫脹・変形あり。"></textarea>
+    <label>バイタル・観察所見（フェーズ2）— 数値入力</label>
+    <div class="vital-grid">
+      <div class="vf"><label>JCS</label><input type="number" id="vf_jcs_2" min="0" max="300" placeholder="例:10"></div>
+      <div class="vf"><label>呼吸数 (回/分)</label><input type="number" id="vf_rr_2" min="0" max="80" placeholder="例:18"></div>
+      <div class="vf"><label>脈拍 (回/分)</label><input type="number" id="vf_hr_2" min="0" max="250" placeholder="例:96"></div>
+      <div class="vf"><label>体温 (℃)</label><input type="number" id="vf_temp_2" step="0.1" min="20" max="45" placeholder="36.5"></div>
+      <div class="vf"><label>血圧 sys</label><input type="number" id="vf_bps_2" min="0" max="300" placeholder="120"></div>
+      <div class="vf"><label>血圧 dia</label><input type="number" id="vf_bpd_2" min="0" max="200" placeholder="80"></div>
+      <div class="vf"><label>瞳孔径 右(mm)</label><input type="number" id="vf_pupR_2" step="0.5" min="0" max="9" placeholder="3"></div>
+      <div class="vf"><label>瞳孔径 左(mm)</label><input type="number" id="vf_pupL_2" step="0.5" min="0" max="9" placeholder="3"></div>
+      <div class="vf vf-wide"><label>瞳孔・神経異常所見（不動・偏視・対光なし 等）</label><input type="text" id="vf_pupNote_2" placeholder="例:右散大・対光反射なし"></div>
+      <div class="vf vf-wide"><label>心電図波形</label><input type="text" id="vf_ecg_2" placeholder="例:洞性頻脈 / VT / ST上昇 (II,III,aVF)"></div>
+      <div class="vf"><label>嘔吐</label><select id="vf_vomit_2"><option value="">--</option><option>無</option><option>有</option></select></div>
+      <div class="vf"><label>嘔気</label><select id="vf_nausea_2"><option value="">--</option><option>無</option><option>有</option></select></div>
+      <div class="vf"><label>麻痺</label><select id="vf_palsy_2"><option value="">--</option><option>無</option><option>右片麻痺</option><option>左片麻痺</option><option>四肢麻痺</option><option>その他</option></select></div>
+      <div class="vf"><label>出血</label><select id="vf_bleed_2"><option value="">--</option><option>無</option><option>あり(活動性なし)</option><option>あり(活動性あり)</option></select></div>
+      <div class="vf vf-wide"><label>その他所見（顔色・気道・外傷など 自由記述）</label><textarea id="vf_note_2" rows="2" placeholder="例:顔面蒼白、胸部打撲痕あり、気道開通"></textarea></div>
+    </div>
+    <textarea id="s_v2" style="display:none;"></textarea>
     <label>処置への反応</label>
     <textarea id="s_r2" placeholder="例：頸椎カラー装着に同意。輸液に対して血圧は改善傾向。疼痛は持続。"></textarea>
 
@@ -727,8 +788,25 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="card-hd" style="margin-bottom:10px;"><em>🏥</em>フェーズ③：搬送中の変化</div>
     <label>患者状態の変化</label>
     <textarea id="s_p3" placeholder="例：搬送5分後に意識レベル低下。GCS E2V3M4に悪化。呼びかけに開眼しなくなった。"></textarea>
-    <label>バイタル変化</label>
-    <textarea id="s_v3" placeholder="例：BP 70/40に低下、HR 140に上昇、SpO2 88%。出血性ショック進行。"></textarea>
+    <label>バイタル・観察所見（フェーズ3）— 数値入力</label>
+    <div class="vital-grid">
+      <div class="vf"><label>JCS</label><input type="number" id="vf_jcs_3" min="0" max="300" placeholder="例:10"></div>
+      <div class="vf"><label>呼吸数 (回/分)</label><input type="number" id="vf_rr_3" min="0" max="80" placeholder="例:18"></div>
+      <div class="vf"><label>脈拍 (回/分)</label><input type="number" id="vf_hr_3" min="0" max="250" placeholder="例:96"></div>
+      <div class="vf"><label>体温 (℃)</label><input type="number" id="vf_temp_3" step="0.1" min="20" max="45" placeholder="36.5"></div>
+      <div class="vf"><label>血圧 sys</label><input type="number" id="vf_bps_3" min="0" max="300" placeholder="120"></div>
+      <div class="vf"><label>血圧 dia</label><input type="number" id="vf_bpd_3" min="0" max="200" placeholder="80"></div>
+      <div class="vf"><label>瞳孔径 右(mm)</label><input type="number" id="vf_pupR_3" step="0.5" min="0" max="9" placeholder="3"></div>
+      <div class="vf"><label>瞳孔径 左(mm)</label><input type="number" id="vf_pupL_3" step="0.5" min="0" max="9" placeholder="3"></div>
+      <div class="vf vf-wide"><label>瞳孔・神経異常所見（不動・偏視・対光なし 等）</label><input type="text" id="vf_pupNote_3" placeholder="例:右散大・対光反射なし"></div>
+      <div class="vf vf-wide"><label>心電図波形</label><input type="text" id="vf_ecg_3" placeholder="例:洞性頻脈 / VT / ST上昇 (II,III,aVF)"></div>
+      <div class="vf"><label>嘔吐</label><select id="vf_vomit_3"><option value="">--</option><option>無</option><option>有</option></select></div>
+      <div class="vf"><label>嘔気</label><select id="vf_nausea_3"><option value="">--</option><option>無</option><option>有</option></select></div>
+      <div class="vf"><label>麻痺</label><select id="vf_palsy_3"><option value="">--</option><option>無</option><option>右片麻痺</option><option>左片麻痺</option><option>四肢麻痺</option><option>その他</option></select></div>
+      <div class="vf"><label>出血</label><select id="vf_bleed_3"><option value="">--</option><option>無</option><option>あり(活動性なし)</option><option>あり(活動性あり)</option></select></div>
+      <div class="vf vf-wide"><label>その他所見（顔色・気道・外傷など 自由記述）</label><textarea id="vf_note_3" rows="2" placeholder="例:顔面蒼白、胸部打撲痕あり、気道開通"></textarea></div>
+    </div>
+    <textarea id="s_v3" style="display:none;"></textarea>
     <label>処置反応・病院交渉ポイント</label>
     <textarea id="s_r3" placeholder="例：輸液追加でBP 80/50。外傷センター直搬が望ましい。血液型O型。大量輸血プロトコル適応の可能性あり。"></textarea>
 
@@ -845,7 +923,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
   <!-- 病院交渉 通話オーバーレイ -->
   <div id="hospCallOverlay" style="display:none;position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,0.93);align-items:center;justify-content:center;flex-direction:column;">
-    <div style="width:96%;max-width:540px;background:#0a1828;border:2px solid #2a4a70;border-radius:12px;overflow:hidden;">
+    <div style="width:96%;max-width:540px;max-height:90vh;background:#0a1828;border:2px solid #2a4a70;border-radius:12px;overflow-y:auto;display:flex;flex-direction:column;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f2438;border-bottom:2px solid #2a4a70;">
         <span style="font-size:13px;font-weight:700;color:#00d4ff;letter-spacing:0.1em;">📞 病院交渉</span>
         <button onclick="closeHospitalCall()" style="background:transparent;border:none;color:#5a7a9a;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
@@ -1244,8 +1322,78 @@ function setApiSt(ok){
 // ============================================================
 // SCENARIO SAVE/LOAD
 // ============================================================
+
+// ============================================================
+// STRUCTURED VITAL HELPERS
+// ============================================================
+function _vfVal(name, phase){
+  const el = document.getElementById('vf_' + name + '_' + phase);
+  return el ? (el.value || '').trim() : '';
+}
+function buildVitalString(phase){
+  const parts = [];
+  const jcs = _vfVal('jcs', phase);   if(jcs!=='') parts.push('JCS ' + jcs);
+  const rr  = _vfVal('rr',  phase);   if(rr!=='')  parts.push('呼吸数 ' + rr + '回/分');
+  const hr  = _vfVal('hr',  phase);   if(hr!=='')  parts.push('脈拍 ' + hr + '回/分');
+  const bps = _vfVal('bps', phase);
+  const bpd = _vfVal('bpd', phase);
+  if(bps!=='' || bpd!==''){
+    parts.push('BP ' + (bps||'?') + '/' + (bpd||'?'));
+  }
+  const temp = _vfVal('temp', phase); if(temp!=='') parts.push('体温 ' + temp + '℃');
+  const pR = _vfVal('pupR', phase);
+  const pL = _vfVal('pupL', phase);
+  if(pR!=='' || pL!==''){
+    parts.push('瞳孔径 R' + (pR||'?') + 'mm/L' + (pL||'?') + 'mm');
+  }
+  const pn = _vfVal('pupNote', phase); if(pn) parts.push('瞳孔所見:' + pn);
+  const ecg = _vfVal('ecg', phase);    if(ecg) parts.push('心電図:' + ecg);
+  const vomit = _vfVal('vomit', phase); if(vomit) parts.push('嘔吐:' + vomit);
+  const nausea = _vfVal('nausea', phase); if(nausea) parts.push('嘔気:' + nausea);
+  const palsy = _vfVal('palsy', phase); if(palsy) parts.push('麻痺:' + palsy);
+  const bleed = _vfVal('bleed', phase); if(bleed) parts.push('出血:' + bleed);
+  const note  = _vfVal('note',  phase); if(note) parts.push(note);
+  return parts.join('、');
+}
+function collectVitalStruct(phase){
+  const f = ['jcs','rr','hr','bps','bpd','temp','pupR','pupL','pupNote','ecg','vomit','nausea','palsy','bleed','note'];
+  const o = {};
+  f.forEach(n => { o[n] = _vfVal(n, phase); });
+  return o;
+}
+function applyVitalStruct(phase, o){
+  if(!o) return;
+  Object.keys(o).forEach(n => {
+    const el = document.getElementById('vf_' + n + '_' + phase);
+    if(el) el.value = o[n] || '';
+  });
+}
+function clearVitalStruct(phase){
+  applyVitalStruct(phase, {jcs:'',rr:'',hr:'',bps:'',bpd:'',temp:'',pupR:'',pupL:'',pupNote:'',ecg:'',vomit:'',nausea:'',palsy:'',bleed:'',note:''});
+}
+
+// ============================================================
+// HOMOPHONE FIX (音声認識の同音異義語補正)
+// ============================================================
+function fixHomophones(text){
+  if(!text) return text;
+  let t = text;
+  // 「動向」→「瞳孔」: 文脈に瞳孔関連語がある／助数詞・修飾と結合している場合のみ
+  const ctx = /(対光|散大|縮小|左右差|左右同|不同|偏視|不動|mm\b|ミリ|径|アニソコリア|瞳)/;
+  if(ctx.test(t)){
+    t = t.replace(/動向/g, '瞳孔').replace(/どうこう/g, '瞳孔');
+  } else {
+    // 単独「動向」は触らない。修飾と結合する形だけ補正
+    t = t.replace(/(右|左|両側?)動向/g, '$1瞳孔')
+         .replace(/動向(径|不同|不動|散大|縮小|偏視|反射)/g, '瞳孔$1');
+  }
+  // 他のよくある誤認識も軽く補正
+  t = t.replace(/(意識)レベル(\s*)([0-9]+)/g, '$1レベル$2$3'); // no-op safe-guard
+  return t;
+}
+
 function collectForm(){
-  return {
+  const data = {
     id: Date.now(),
     name: document.getElementById('s_name').value.trim(),
     type: document.getElementById('s_type').value,
@@ -1270,7 +1418,14 @@ function collectForm(){
     r3: document.getElementById('s_r3').value,
     hosp: document.getElementById('s_hosp').value,
     hosp_info: document.getElementById('s_hosp_info').value,
+    vstruct: {1: collectVitalStruct(1), 2: collectVitalStruct(2), 3: collectVitalStruct(3)},
   };
+  // 構造化バイタルがあれば v1/v2/v3 を再構築（自由記述だけならそのまま）
+  for(let p=1; p<=3; p++){
+    const built = buildVitalString(p);
+    if(built) data['v'+p] = built;
+  }
+  return data;
 }
 function saveScenario(){
   const sc=collectForm();
@@ -1290,6 +1445,17 @@ function loadScenario(id){
   document.getElementById('s_disptype').value=sc.disptype||'救急';
   const rateEl=document.getElementById('s_disprate');
   if(rateEl){ rateEl.value=sc.disprate||0.9; document.getElementById('s_disprateVal').textContent=sc.disprate||0.9; }
+  // 構造化バイタル復元
+  for(let p=1; p<=3; p++){
+    if(sc.vstruct && sc.vstruct[p]){
+      applyVitalStruct(p, sc.vstruct[p]);
+    } else {
+      // 旧フォーマットの自由記述をそのまま「その他所見」へ移送
+      clearVitalStruct(p);
+      const noteEl = document.getElementById('vf_note_' + p);
+      if(noteEl) noteEl.value = sc['v'+p] || '';
+    }
+  }
   toast('シナリオを読み込みました');
 }
 function deleteScenario(id){
@@ -1892,7 +2058,8 @@ let callState = {
   active: false,        // オーバーレイ表示中
   recording: false,     // 録音中
   recog: null,
-  transcript: '',
+  transcript: '',       // 表示用累積
+  priorSessions: '',    // 過去インスタンス分の確定累積（再構築の起点）
   deptId: 'er'
 };
 
@@ -1900,6 +2067,7 @@ function openHospitalCall(){
   document.getElementById('hospCallOverlay').style.display='flex';
   callState.active = true;
   callState.transcript = '';
+  callState.priorSessions = '';
   callState.recording = false;
   document.getElementById('callTranscript').textContent = '';
   document.getElementById('callReplyBox').style.display = 'none';
@@ -1939,10 +2107,17 @@ function setCallButtonsState(rec){
   const eb = document.getElementById('callStopBtn');
   if(rec){
     sb.disabled = true;  sb.style.opacity = '0.4';  sb.textContent = '🔴 通話中';
+    // ★ 停止ボタンは録音中はもちろん押下可能
     eb.disabled = false; eb.style.opacity = '1';
   } else {
     sb.disabled = false; sb.style.opacity = '1';   sb.textContent = '📞 通話開始';
-    eb.disabled = true;  eb.style.opacity = '0.5';
+    // ★ 通話オーバーレイが開いている間は録音停止状態でもクリック自体は可能にしておく
+    //   （内部 stopCallAndAsk 側で recording=false なら早期 return するので安全）
+    if(callState.active){
+      eb.disabled = false; eb.style.opacity = '0.7';
+    } else {
+      eb.disabled = true;  eb.style.opacity = '0.5';
+    }
   }
 }
 
@@ -1954,42 +2129,44 @@ function _createCallRecog(){
   r.continuous = true;
   r.interimResults = true;
   r.maxAlternatives = 1;
-  // 各インスタンスごとに独自の処理済みインデックスを保持
-  let lastFinalIdx = 0;
-  r.onstart = ()=>{ lastFinalIdx = 0; };
   r.onresult = e=>{
-    let interim = '';
+    // ★ 重複防止：onresult のたびに e.results を全件走査して再構築
+    //   ＋ priorSessions（過去インスタンスの確定分）を前置
+    let interim = '', sessionFinal = '';
     for(let i=0; i<e.results.length; i++){
       const res = e.results[i];
-      if(res.isFinal){
-        if(i >= lastFinalIdx){
-          callState.transcript += res[0].transcript + ' ';
-          lastFinalIdx = i + 1;
-        }
-      } else {
-        interim += res[0].transcript;
-      }
+      if(res.isFinal) sessionFinal += res[0].transcript + ' ';
+      else interim += res[0].transcript;
     }
+    callState.transcript = fixHomophones((callState.priorSessions || '') + sessionFinal);
     const tEl = document.getElementById('callTranscript');
     if(tEl){
       tEl.textContent = callState.transcript + (interim ? ('〔' + interim + '〕') : '');
-      // 自動スクロール（最新部分を表示）
       const box = document.getElementById('callStateBox');
       if(box) box.scrollTop = box.scrollHeight;
     }
   };
   r.onerror = e=>{
-    if(e.error==='not-allowed'){ toast('マイク許可が必要です'); callState.recording=false; setCallButtonsState(false); }
+    // not-allowed のみ録音停止。それ以外は onend に任せて自動再起動
+    if(e.error==='not-allowed'){
+      toast('マイク許可が必要です');
+      callState.recording=false;
+      setCallButtonsState(false);
+    }
+    // 停止ボタンは録音状態に関わらず常時押下可能（active 中）
   };
   r.onend = ()=>{
+    // このインスタンスで確定した分を priorSessions に吸収
+    callState.priorSessions = callState.transcript;
     if(callState.recording){
-      // 重複防止のため毎回新しいインスタンスで再起動
       setTimeout(()=>{
         if(!callState.recording) return;
         callState.recog = _createCallRecog();
         if(!callState.recog) return;
-        try{ callState.recog.start(); }catch(_){}
-      }, 120);
+        try{ callState.recog.start(); }catch(_){
+          // 起動失敗時もボタンは active なら押下可能なまま
+        }
+      }, 150);
     }
   };
   return r;
@@ -2000,6 +2177,7 @@ function startCallRecord(){
     toast('このブラウザは音声認識に対応していません'); return;
   }
   callState.transcript = '';
+  callState.priorSessions = '';
   document.getElementById('callTranscript').textContent = '';
   document.getElementById('callReplyBox').style.display = 'none';
   const dept = HOSPITAL_DEPTS.find(d=>d.id===callState.deptId);
@@ -2013,9 +2191,12 @@ function startCallRecord(){
 }
 
 async function stopCallAndAsk(){
-  if(!callState.recording) return;
+  // 認識が落ちた状態でも transcript があれば送信できるようにする
+  const wasRecording = callState.recording;
   callState.recording = false;
-  try{ callState.recog && callState.recog.abort(); }catch(_){}
+  if(wasRecording){
+    try{ callState.recog && callState.recog.abort(); }catch(_){}
+  }
   setCallButtonsState(false);
   document.getElementById('callStateLine').textContent = '🔄 医師に確認中...';
   const transcript = (callState.transcript||'').trim();
@@ -2587,8 +2768,9 @@ async function testAPI(){
 
 async function send(){
   if(!apiKey){alert('APIキーを設定してください');return;}
-  const txt=document.getElementById('txtIn').value.trim();
+  let txt=document.getElementById('txtIn').value.trim();
   if(!txt)return;
+  txt = fixHomophones(txt);
   document.getElementById('txtIn').value='';
   document.getElementById('micTx').textContent='';
   // 送信直後から TTS再生完了まで待受を抑制
@@ -2826,6 +3008,7 @@ function aonLoop(){
       }
       if(interim) setAonText('🎤 ' + interim);
       if(!final) return;
+      final = fixHomophones(final);
       setAonText(final);
       const trimmed = final.trim();
       if(!trimmed) return;
