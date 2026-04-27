@@ -3132,16 +3132,54 @@ function testTTS(){
   unlockAudio();
   const txt = 'テストです。音声合成は正常に動作しています。';
   try{ window.speechSynthesis.cancel(); }catch(e){}
-  const u = new SpeechSynthesisUtterance(txt);
-  u.lang='ja-JP'; u.rate=1.0;
-  u.onstart = ()=> diag('▶ 再生開始', 'var(--green)');
-  u.onend = ()=> diag('✅ 読み上げ完了', 'var(--green)');
-  u.onerror = e => diag('❌ 読み上げエラー: '+(e.error||'不明'), 'var(--red)');
-  const voices = window.speechSynthesis.getVoices();
-  diag('利用可能音声: ' + voices.length + '個（日本語: ' + voices.filter(v=>v.lang&&v.lang.startsWith('ja')).length + '個）');
-  const ja = voices.find(v=>v.lang && v.lang.startsWith('ja'));
-  if(ja) { u.voice = ja; diag('使用音声: ' + ja.name); }
-  window.speechSynthesis.speak(u);
+  // voicesがまだロードされていない場合は少し待つ
+  const startTest = ()=>{
+    const voices = window.speechSynthesis.getVoices();
+    diag('利用可能音声: ' + voices.length + '個（日本語: ' + voices.filter(v=>v.lang&&v.lang.startsWith('ja')).length + '個）');
+    const jaVoices = voices.filter(v=>v.lang && v.lang.startsWith('ja'));
+    // 試行リスト: ①voice指定なし（OS既定） ②各日本語voiceを順番に
+    const candidates = [null, ...jaVoices];
+    let idx = 0;
+    const tryNext = ()=>{
+      if(idx >= candidates.length){
+        diag('❌ すべての候補で失敗しました。Android: Google日本語音声合成エンジンの導入を確認してください', 'var(--red)');
+        diag('  → 設定 → 言語と入力 → テキスト読み上げ → Google音声合成 を有効化', 'var(--dim)');
+        return;
+      }
+      const v = candidates[idx++];
+      diag(v ? ('▶ 試行: ' + v.name) : '▶ 試行: voice指定なし（OS既定）', 'var(--cyan)');
+      const u = new SpeechSynthesisUtterance(txt);
+      u.lang='ja-JP'; u.rate=1.0; u.pitch=1.0; u.volume=1.0;
+      if(v) u.voice = v;
+      let started = false;
+      u.onstart = ()=>{ started = true; diag('  ▶ 再生開始', 'var(--green)'); };
+      u.onend = ()=>{ if(started) diag('✅ 読み上げ完了（候補: ' + (v?v.name:'OS既定') + '）', 'var(--green)'); };
+      u.onerror = e =>{
+        diag('  ❌ ' + (e.error||'不明') + ' → 次の候補を試します...', 'var(--orange)');
+        setTimeout(tryNext, 250);
+      };
+      try{ window.speechSynthesis.cancel(); }catch(_){}
+      // cancel→speak 間に遅延を挟む（Android Chromeのタイミングバグ対策）
+      setTimeout(()=>{ try{ window.speechSynthesis.speak(u); }catch(e){ diag('  ❌ speak() 例外: ' + e.message, 'var(--red)'); setTimeout(tryNext, 250); } }, 120);
+      // 5秒後にonstartが来なければ次へ
+      setTimeout(()=>{ if(!started){ diag('  ⚠ 開始されず（5秒タイムアウト） → 次の候補', 'var(--orange)'); try{ window.speechSynthesis.cancel(); }catch(_){} tryNext(); } }, 5000);
+    };
+    tryNext();
+  };
+  if(window.speechSynthesis.getVoices().length === 0){
+    // 未ロード時は voiceschanged を待つ
+    diag('⏳ 音声リスト読込待ち...', 'var(--dim)');
+    let waited = 0;
+    const wait = setInterval(()=>{
+      waited += 200;
+      if(window.speechSynthesis.getVoices().length > 0 || waited >= 2000){
+        clearInterval(wait);
+        startTest();
+      }
+    }, 200);
+  } else {
+    startTest();
+  }
 }
 
 function testMic(){
@@ -3730,8 +3768,12 @@ function _doSpeak(text, attempt, role){
     u.lang  = 'ja-JP';
     u.rate  = preset.rate;
     u.pitch = preset.pitch;
-    const v = pickVoiceForRole(voices, role);
-    if(v) u.voice = v;
+    u.volume = 1.0;
+    // attempt 0: 役割マッチ voice / attempt 1: voice なし（OS既定）
+    if(attempt === 0){
+      const v = pickVoiceForRole(voices, role);
+      if(v) u.voice = v;
+    }
     u.onstart = ()=>{
       isSpeaking=true;
       const b=document.getElementById('speakBar'); if(b) b.classList.add('on');
@@ -3741,11 +3783,18 @@ function _doSpeak(text, attempt, role){
       const b=document.getElementById('speakBar'); if(b) b.classList.remove('on');
       setTimeout(()=>{ isSpeaking=false; }, 700);
     };
-    u.onerror = ()=>{
+    u.onerror = (ev)=>{
       const b=document.getElementById('speakBar'); if(b) b.classList.remove('on');
-      setTimeout(()=>{ isSpeaking=false; }, 300);
+      // synthesis-failed などのエラー時、voice指定を外して1回だけリトライ
+      if(attempt < 1){
+        console.warn('TTS error', ev && ev.error, '→ voice指定なしでリトライ');
+        setTimeout(()=>_doSpeak(text, attempt+1, role), 200);
+      } else {
+        setTimeout(()=>{ isSpeaking=false; }, 300);
+      }
     };
-    window.speechSynthesis.speak(u);
+    // cancel→speak 間に微少遅延（Android Chrome タイミングバグ対策）
+    setTimeout(()=>{ try{ window.speechSynthesis.speak(u); }catch(_){} }, 60);
   }catch(e){ console.warn('speak error:', e); setTimeout(()=>{isSpeaking=false;},300); }
 }
 
