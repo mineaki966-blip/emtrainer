@@ -596,6 +596,28 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   .vital-grid .vf-half{grid-column:span 1;}
 }
 
+
+/* ===== PROC PANEL ===== */
+.proc-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+}
+.proc-btn{
+  padding:9px 6px;font-size:11px;font-weight:600;
+  border-radius:6px;border:1px solid rgba(255,159,67,0.4);
+  background:rgba(255,159,67,0.08);color:#ffb070;
+  cursor:pointer;line-height:1.2;
+}
+.proc-btn:hover{background:rgba(255,159,67,0.18);}
+.proc-btn:active{transform:translateY(1px);}
+@media (max-width:520px){
+  .proc-grid{grid-template-columns:repeat(3,1fr);}
+}
+
+
+/* 特定行為トグルボタン */
+.tk-btn{background:#1a2a3a;border:1px solid #3a5a7a;color:#9abacc;font-size:11px;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:600;transition:all 0.15s;}
+.tk-btn:hover{background:#2a3a4a;border-color:#5a7a9a;}
+.tk-btn.on{background:#2a4a6a;border-color:#00d4ff;color:#00d4ff;box-shadow:0 0 6px rgba(0,212,255,0.4);}
 </style>
 </head>
 <body>
@@ -635,6 +657,30 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <input type="checkbox" id="autoFallback" checked style="width:auto;margin:0;"> キー切れ時は他AIへ自動切替
   </label>
 </div>
+<!-- ===== プロトコル参照（ローカル限定） ===== -->
+<div class="card" style="padding:12px;margin-bottom:10px;">
+  <div class="card-hd" style="margin-bottom:6px;cursor:pointer;user-select:none;" onclick="(function(){var c=document.getElementById('protoBody');var a=document.getElementById('protoArrow');if(c.style.display==='none'){c.style.display='block';a.textContent='▼ 折畳';}else{c.style.display='none';a.textContent='▶ 展開';}})()">
+    <em>📋</em>救急活動プロトコル参照（任意）
+    <span id="protoArrow" style="margin-left:auto;font-size:11px;color:var(--dim);">▶ 展開</span>
+  </div>
+  <div id="protoStatus" style="font-size:12px;color:var(--dim);margin-bottom:6px;">⚠ 未設定 — 医師フィードバックは標準モードで実行されます</div>
+  <div id="protoBody" style="display:none;">
+    <div style="font-size:11px;color:var(--dim);line-height:1.7;background:var(--s2);border-radius:6px;padding:8px 10px;margin-bottom:8px;">
+      <strong style="color:var(--cyan);">⚠ プライバシーについて</strong><br>
+      プロトコル本文は <strong>このブラウザの localStorage にのみ保存</strong>され、HTMLソース・GitHubには一切含まれません。<br>
+      ただし医師フィードバック生成時は AIプロバイダ（Gemini/Groq/OpenAI/Claude）の API に送信されます。
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+      <input type="file" id="protoFileIn" accept=".txt,text/plain" onchange="onProtocolFile(event)" style="flex:1;min-width:180px;font-size:11px;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleProtocolPaste()">✏ 貼付で入力</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearProtocolText()" style="color:var(--red);border-color:var(--red);">🗑 削除</button>
+    </div>
+    <div id="protoPasteWrap" style="display:none;margin-top:6px;">
+      <textarea id="protoPasteArea" rows="4" placeholder="プロトコル本文を貼り付け..." style="width:100%;font-size:11px;"></textarea>
+      <button class="btn btn-cyan btn-sm" onclick="onProtocolPaste()" style="margin-top:4px;">保存</button>
+    </div>
+  </div>
+</div>
 <div id="diagPanel" style="display:none;background:var(--s1);border:1px solid var(--cyan);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:12px;line-height:1.7;max-height:220px;overflow:auto;">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
     <span style="color:var(--cyan);font-weight:700;">🔍 診断結果</span>
@@ -667,6 +713,25 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
     <!-- Saved scenarios -->
     <div id="savedScList"></div>
+    <!-- ===== シナリオテンプレート選択 ===== -->
+    <div class="card" style="padding:10px;margin-bottom:10px;background:rgba(99,179,237,0.06);border:1px solid rgba(99,179,237,0.4);">
+      <div class="card-hd" style="margin-bottom:6px;"><em>📚</em>シナリオテンプレート（クリックで全フィールド自動投入）</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="tmplSelect" style="flex:1;min-width:220px;font-size:13px;padding:6px 8px;">
+          <option value="">— 選択してください —</option>
+          <option value="tmpl_acs_55m">①胸痛（急性下壁心筋梗塞・55歳男性）</option>
+          <option value="tmpl_sah_55f">②意識障害（くも膜下出血・55歳女性）</option>
+          <option value="tmpl_hypogly_70m">③意識障害（低血糖・70歳男性）</option>
+          <option value="tmpl_sepsis_70m">④ショック（敗血症性ショック・70歳男性）</option>
+        </select>
+        <button class="btn btn-cyan btn-sm" onclick="onTemplateSelect()">📥 適用</button>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px;line-height:1.6;">
+        テンプレートを適用すると、通報内容・既往歴・3フェーズのバイタル・処置反応・訓練評価ポイントが自動投入されます。
+        投入後に編集も可能です。
+      </div>
+    </div>
+
     <hr>
 
     <div class="g2">
@@ -740,10 +805,24 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <textarea id="s_f1" placeholder="例：同乗していた妻。既往歴は高血圧。服薬はアムロジピン5mg。かかりつけは山田内科。"></textarea>
     <label>バイタル・観察所見（フェーズ1）— 数値入力</label>
     <div class="vital-grid">
-      <div class="vf"><label>JCS</label><input type="number" id="vf_jcs_1" min="0" max="300" placeholder="例:10"></div>
+      <div class="vf"><label>JCS</label>
+      <select id="vf_jcs_1">
+        <option value="">--</option>
+        <option value="0">0 (清明)</option>
+        <option value="1">I-1 (清明とは言えない)</option>
+        <option value="2">I-2 (見当識障害)</option>
+        <option value="3">I-3 (氏名/生年月日不可)</option>
+        <option value="10">II-10 (普通の呼びかけで開眼)</option>
+        <option value="20">II-20 (大声/揺さぶり開眼)</option>
+        <option value="30">II-30 (痛み刺激と呼びかけで開眼)</option>
+        <option value="100">III-100 (払いのけ動作)</option>
+        <option value="200">III-200 (顔をしかめる)</option>
+        <option value="300">III-300 (反応なし)</option>
+      </select></div>
       <div class="vf"><label>呼吸数 (回/分)</label><input type="number" id="vf_rr_1" min="0" max="80" placeholder="例:18"></div>
       <div class="vf"><label>脈拍 (回/分)</label><input type="number" id="vf_hr_1" min="0" max="250" placeholder="例:96"></div>
       <div class="vf"><label>体温 (℃)</label><input type="number" id="vf_temp_1" step="0.1" min="20" max="45" placeholder="36.5"></div>
+      <div class="vf"><label>SpO2 (%)</label><input type="number" id="vf_spo2_1" min="0" max="100" placeholder="98"></div>
       <div class="vf"><label>血圧 sys</label><input type="number" id="vf_bps_1" min="0" max="300" placeholder="120"></div>
       <div class="vf"><label>血圧 dia</label><input type="number" id="vf_bpd_1" min="0" max="200" placeholder="80"></div>
       <div class="vf"><label>瞳孔径 右(mm)</label><input type="number" id="vf_pupR_1" step="0.5" min="0" max="9" placeholder="3"></div>
@@ -764,10 +843,24 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <textarea id="s_p2" placeholder="例：安静で少し楽になった。痛みは変わらない。意識は保たれている。"></textarea>
     <label>バイタル・観察所見（フェーズ2）— 数値入力</label>
     <div class="vital-grid">
-      <div class="vf"><label>JCS</label><input type="number" id="vf_jcs_2" min="0" max="300" placeholder="例:10"></div>
+      <div class="vf"><label>JCS</label>
+      <select id="vf_jcs_2">
+        <option value="">--</option>
+        <option value="0">0 (清明)</option>
+        <option value="1">I-1 (清明とは言えない)</option>
+        <option value="2">I-2 (見当識障害)</option>
+        <option value="3">I-3 (氏名/生年月日不可)</option>
+        <option value="10">II-10 (普通の呼びかけで開眼)</option>
+        <option value="20">II-20 (大声/揺さぶり開眼)</option>
+        <option value="30">II-30 (痛み刺激と呼びかけで開眼)</option>
+        <option value="100">III-100 (払いのけ動作)</option>
+        <option value="200">III-200 (顔をしかめる)</option>
+        <option value="300">III-300 (反応なし)</option>
+      </select></div>
       <div class="vf"><label>呼吸数 (回/分)</label><input type="number" id="vf_rr_2" min="0" max="80" placeholder="例:18"></div>
       <div class="vf"><label>脈拍 (回/分)</label><input type="number" id="vf_hr_2" min="0" max="250" placeholder="例:96"></div>
       <div class="vf"><label>体温 (℃)</label><input type="number" id="vf_temp_2" step="0.1" min="20" max="45" placeholder="36.5"></div>
+      <div class="vf"><label>SpO2 (%)</label><input type="number" id="vf_spo2_2" min="0" max="100" placeholder="98"></div>
       <div class="vf"><label>血圧 sys</label><input type="number" id="vf_bps_2" min="0" max="300" placeholder="120"></div>
       <div class="vf"><label>血圧 dia</label><input type="number" id="vf_bpd_2" min="0" max="200" placeholder="80"></div>
       <div class="vf"><label>瞳孔径 右(mm)</label><input type="number" id="vf_pupR_2" step="0.5" min="0" max="9" placeholder="3"></div>
@@ -790,10 +883,24 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <textarea id="s_p3" placeholder="例：搬送5分後に意識レベル低下。GCS E2V3M4に悪化。呼びかけに開眼しなくなった。"></textarea>
     <label>バイタル・観察所見（フェーズ3）— 数値入力</label>
     <div class="vital-grid">
-      <div class="vf"><label>JCS</label><input type="number" id="vf_jcs_3" min="0" max="300" placeholder="例:10"></div>
+      <div class="vf"><label>JCS</label>
+      <select id="vf_jcs_3">
+        <option value="">--</option>
+        <option value="0">0 (清明)</option>
+        <option value="1">I-1 (清明とは言えない)</option>
+        <option value="2">I-2 (見当識障害)</option>
+        <option value="3">I-3 (氏名/生年月日不可)</option>
+        <option value="10">II-10 (普通の呼びかけで開眼)</option>
+        <option value="20">II-20 (大声/揺さぶり開眼)</option>
+        <option value="30">II-30 (痛み刺激と呼びかけで開眼)</option>
+        <option value="100">III-100 (払いのけ動作)</option>
+        <option value="200">III-200 (顔をしかめる)</option>
+        <option value="300">III-300 (反応なし)</option>
+      </select></div>
       <div class="vf"><label>呼吸数 (回/分)</label><input type="number" id="vf_rr_3" min="0" max="80" placeholder="例:18"></div>
       <div class="vf"><label>脈拍 (回/分)</label><input type="number" id="vf_hr_3" min="0" max="250" placeholder="例:96"></div>
       <div class="vf"><label>体温 (℃)</label><input type="number" id="vf_temp_3" step="0.1" min="20" max="45" placeholder="36.5"></div>
+      <div class="vf"><label>SpO2 (%)</label><input type="number" id="vf_spo2_3" min="0" max="100" placeholder="98"></div>
       <div class="vf"><label>血圧 sys</label><input type="number" id="vf_bps_3" min="0" max="300" placeholder="120"></div>
       <div class="vf"><label>血圧 dia</label><input type="number" id="vf_bpd_3" min="0" max="200" placeholder="80"></div>
       <div class="vf"><label>瞳孔径 右(mm)</label><input type="number" id="vf_pupR_3" step="0.5" min="0" max="9" placeholder="3"></div>
@@ -932,6 +1039,23 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div style="font-size:11px;color:#5a7a9a;margin-bottom:6px;">受信先科目を選択</div>
         <div id="deptList" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;"></div>
 
+        <!-- ===== 特定行為指示要請（複数選択可） ===== -->
+        <div id="tokuteiBar" style="background:#0a1830;border:1px solid #2a4a6a;border-radius:8px;padding:8px 10px;margin-bottom:10px;">
+          <div style="font-size:11px;color:#7a9aba;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#ffaa55;">📋 特定行為の指示要請</span>
+            <span style="font-size:10px;color:#5a7a9a;">（複数選択可・医師が適応判定して回答）</span>
+            <button onclick="clearTokutei()" style="margin-left:auto;background:transparent;border:1px solid #3a5a7a;color:#7a9aba;font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;">クリア</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <button class="tk-btn" data-tk="心肺機能停止前輸液" onclick="toggleTokutei('心肺機能停止前輸液')">心肺機能停止前輸液</button>
+            <button class="tk-btn" data-tk="心肺停止傷病者への輸液" onclick="toggleTokutei('心肺停止傷病者への輸液')">心肺停止輸液</button>
+            <button class="tk-btn" data-tk="LT挿入（食道閉鎖式エアウェイ）" onclick="toggleTokutei('LT挿入（食道閉鎖式エアウェイ）')">LT/LM挿入</button>
+            <button class="tk-btn" data-tk="気管挿管" onclick="toggleTokutei('気管挿管')">気管挿管</button>
+            <button class="tk-btn" data-tk="アドレナリン投与（CPA）" onclick="toggleTokutei('アドレナリン投与（CPA）')">アドレナリン</button>
+            <button class="tk-btn" data-tk="ブドウ糖投与（低血糖）" onclick="toggleTokutei('ブドウ糖投与（低血糖）')">ブドウ糖投与</button>
+          </div>
+        </div>
+
         <!-- 通話開始/停止ボタン：科目の直下に常時表示 -->
         <div style="display:flex;gap:8px;margin-bottom:10px;">
           <button id="callStartBtn" onclick="startCallRecord()" style="flex:1;padding:12px;border-radius:8px;border:1px solid #00ff88;background:rgba(0,255,136,0.15);color:#00ff88;font-weight:700;cursor:pointer;font-size:13px;">📞 通話開始</button>
@@ -1055,6 +1179,30 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="mic-tx" id="micTx"></div>
       </div>
     </div>
+    <!-- 処置選択パネル（処置反応 役割の時に表示） -->
+<div class="card" id="procPanel" style="display:none;padding:10px;margin-bottom:10px;background:rgba(255,159,67,0.04);border-color:rgba(255,159,67,0.3);">
+  <div class="card-hd" style="margin-bottom:8px;color:var(--orange);"><em>💊</em>処置選択（タップで実施＆反応取得）</div>
+  <div class="proc-grid">
+    <button class="proc-btn" onclick="doProc('血糖測定を実施')" style="background:rgba(99,179,237,0.15);">血糖測定</button>
+    <button class="proc-btn" onclick="doProc('下顎挙上による気道確保')">下顎挙上</button>
+    <button class="proc-btn" onclick="doProc('体位変換：仰臥位')">体位:仰臥位</button>
+    <button class="proc-btn" onclick="doProc('体位変換：半座位（ファーラー位）')">体位:半座位</button>
+    <button class="proc-btn" onclick="doProc('体位変換：側臥位（回復体位）')">体位:側臥位</button>
+    <button class="proc-btn" onclick="doProc('体位変換：ショック体位（下肢挙上）')">ショック体位</button>
+    <button class="proc-btn" onclick="doProc('口腔内吸引を実施')">吸引</button>
+    <button class="proc-btn" onclick="doProc('酸素投与（経鼻カニューレ・中濃度 鼻3L/分）')">O2:中濃度</button>
+    <button class="proc-btn" onclick="doProc('酸素投与（リザーバマスク・高濃度 10L/分）')">O2:高濃度</button>
+    <button class="proc-btn" onclick="doProc('補助換気（BVM）開始')">補助換気</button>
+    <button class="proc-btn" onclick="doProc('ショック前輸液（生理食塩水 急速投与）')">ショック前輸液</button>
+    <button class="proc-btn" onclick="doProc('ブドウ糖50%静注')">ブドウ糖</button>
+    <button class="proc-btn" onclick="doProc('アドレナリン1mg静注（CPA症例）')">アドレナリン</button>
+    <button class="proc-btn" onclick="doProc('AED/除細動を実施')">除細動</button>
+    <button class="proc-btn" onclick="doProc('胸骨圧迫開始')">胸骨圧迫</button>
+    <button class="proc-btn" onclick="doProc('頸椎カラー装着')">頸椎カラー</button>
+    <button class="proc-btn" onclick="doProc('止血処置（直接圧迫）')">止血</button>
+    <button class="proc-btn" onclick="doProc('保温（毛布など）')">保温</button>
+  </div>
+</div>
     <div class="input-row">
       <input type="text" id="txtIn" placeholder="テキスト入力（Enterで送信）" onkeydown="if(event.key==='Enter')send()">
       <button class="btn btn-cyan" onclick="send()">送信</button>
@@ -1341,6 +1489,7 @@ function buildVitalString(phase){
     parts.push('BP ' + (bps||'?') + '/' + (bpd||'?'));
   }
   const temp = _vfVal('temp', phase); if(temp!=='') parts.push('体温 ' + temp + '℃');
+  const spo2 = _vfVal('spo2', phase); if(spo2!=='') parts.push('SpO2 ' + spo2 + '%');
   const pR = _vfVal('pupR', phase);
   const pL = _vfVal('pupL', phase);
   if(pR!=='' || pL!==''){
@@ -1356,7 +1505,7 @@ function buildVitalString(phase){
   return parts.join('、');
 }
 function collectVitalStruct(phase){
-  const f = ['jcs','rr','hr','bps','bpd','temp','pupR','pupL','pupNote','ecg','vomit','nausea','palsy','bleed','note'];
+  const f = ['jcs','rr','hr','bps','bpd','temp','spo2','pupR','pupL','pupNote','ecg','vomit','nausea','palsy','bleed','note'];
   const o = {};
   f.forEach(n => { o[n] = _vfVal(n, phase); });
   return o;
@@ -1369,7 +1518,43 @@ function applyVitalStruct(phase, o){
   });
 }
 function clearVitalStruct(phase){
-  applyVitalStruct(phase, {jcs:'',rr:'',hr:'',bps:'',bpd:'',temp:'',pupR:'',pupL:'',pupNote:'',ecg:'',vomit:'',nausea:'',palsy:'',bleed:'',note:''});
+  applyVitalStruct(phase, {jcs:'',rr:'',hr:'',bps:'',bpd:'',temp:'',spo2:'',pupR:'',pupL:'',pupNote:'',ecg:'',vomit:'',nausea:'',palsy:'',bleed:'',note:''});
+}
+
+
+// ============================================================
+// 反復認識フレーズ圧縮（病院交渉などの長時間録音用）
+// ============================================================
+function _dedupeRepeats(s){
+  if(!s) return s;
+  // 半角/全角空白で分割してトークン化
+  const tokens = s.trim().split(/\s+/).filter(Boolean);
+  if(tokens.length < 2) return s;
+  const out = [];
+  let i = 0;
+  while(i < tokens.length){
+    let matched = false;
+    // ウィンドウサイズ 6→1 で「直後の同一区間」を検出して圧縮
+    for(let w = Math.min(6, Math.floor((tokens.length - i)/2)); w >= 1; w--){
+      const seg = tokens.slice(i, i + w).join('|');
+      const next = tokens.slice(i + w, i + 2*w).join('|');
+      if(seg && seg === next){
+        out.push(...tokens.slice(i, i + w));
+        i += w;
+        // 同じ区間がさらに繰返されているなら全部スキップ
+        while(i + w <= tokens.length && tokens.slice(i, i + w).join('|') === seg){
+          i += w;
+        }
+        matched = true;
+        break;
+      }
+    }
+    if(!matched){
+      out.push(tokens[i]);
+      i++;
+    }
+  }
+  return out.join(' ');
 }
 
 // ============================================================
@@ -1390,6 +1575,130 @@ function fixHomophones(text){
   // 他のよくある誤認識も軽く補正
   t = t.replace(/(意識)レベル(\s*)([0-9]+)/g, '$1レベル$2$3'); // no-op safe-guard
   return t;
+}
+
+
+// ============================================================
+// 救急活動プロトコル参照（ローカル限定）
+// 出典: 中播磨・西播磨地域 MC協議会『救急活動プロトコル』
+// 内容は localStorage にユーザー自身の端末でのみ保存される。
+// HTML/JS には埋め込まない。
+// ============================================================
+function getProtocolText(){
+  try{ return localStorage.getItem('em_protocol') || ''; }catch(_){ return ''; }
+}
+function setProtocolText(t){
+  try{
+    if(t && t.length){
+      localStorage.setItem('em_protocol', t);
+    } else {
+      localStorage.removeItem('em_protocol');
+    }
+    refreshProtocolStatus();
+    return true;
+  }catch(e){
+    toast && toast('保存失敗: ' + e.message);
+    return false;
+  }
+}
+function clearProtocolText(){
+  if(!confirm('保存済みのプロトコル本文を削除します。よろしいですか？（このブラウザのlocalStorageのみ）')) return;
+  setProtocolText('');
+  toast && toast('プロトコルを削除しました');
+}
+function refreshProtocolStatus(){
+  const el = document.getElementById('protoStatus');
+  if(!el) return;
+  const t = getProtocolText();
+  if(t){
+    el.innerHTML = '<span style="color:var(--green);font-weight:700;">📋 設定済み</span> — ' + t.length.toLocaleString() + '字（このブラウザにのみ保存）';
+  } else {
+    el.innerHTML = '<span style="color:var(--orange);font-weight:700;">⚠ 未設定</span> — 医師フィードバックは標準モードで実行されます';
+  }
+}
+function onProtocolFile(ev){
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  if(f.size > 1024 * 1024){
+    toast && toast('1MBを超えるファイルは読み込めません');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const txt = String(e.target.result || '').trim();
+    if(!txt){ toast && toast('ファイルが空です'); return; }
+    setProtocolText(txt);
+    toast && toast('プロトコルを保存（' + txt.length.toLocaleString() + '字）');
+  };
+  reader.onerror = ()=> toast && toast('読込エラー');
+  reader.readAsText(f, 'utf-8');
+  ev.target.value = '';
+}
+function onProtocolPaste(){
+  const ta = document.getElementById('protoPasteArea');
+  if(!ta) return;
+  const txt = (ta.value || '').trim();
+  if(!txt){ toast && toast('テキストが空です'); return; }
+  if(txt.length > 1024 * 1024){ toast && toast('長すぎます（1MB上限）'); return; }
+  setProtocolText(txt);
+  ta.value = '';
+  toast && toast('プロトコルを保存（' + txt.length.toLocaleString() + '字）');
+  document.getElementById('protoPasteWrap').style.display = 'none';
+}
+function toggleProtocolPaste(){
+  const w = document.getElementById('protoPasteWrap');
+  if(!w) return;
+  w.style.display = (w.style.display === 'none' || !w.style.display) ? 'block' : 'none';
+}
+
+
+// ============================================================
+// 内蔵シナリオテンプレート（BUILTIN_SCENARIOS）
+// ・選択するだけで全フィールドが自動投入される
+// ・dynamicScript / procedureHooks は患者AIプロンプトに注入
+// ・trainingPoints は医師フィードバック評価軸に注入
+// ============================================================
+const BUILTIN_SCENARIOS = [{"id": "tmpl_acs_55m", "name": "①胸痛（急性下壁心筋梗塞）", "age": "55歳", "sex": "男性", "type": "cardiac", "chief": "胃のあたりの痛み・嘔気", "scene": "自宅居間。胸の前を押さえて苦悶顔貌、冷汗著明。30分前に心窩部痛発症。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。55歳男性、約30分前から心窩部に持続する痛みが続き救急要請。既往に脂質異常症・高血圧・糖尿病あり、近隣二次病院かかりつけ。直近二次病院10分、三次病院20分、ドクターヘリ要請可能。", "disprate": 0.9, "p1": "（苦悶顔貌で胸を押さえる）うっ…胃が痛い…吐き気もする…", "f1": "30分前に「胃のあたりが痛い」と言って苦しみ出しました。だんだん酷くなっています。脂質異常症・高血圧・糖尿病があり、いつもの病院は◯◯クリニックです。", "p2": "（息苦しそう）うっ…息が…苦しい…（呼びかけにうなずく程度、苦しくて発語不可）", "r2": "酸素投与後の改善に応じて応答。冷汗持続、頸静脈怒張あり、湿性ラ音持続。", "p3": "（無反応・発語なし）", "r3": "BVM換気では胸郭挙上不良・抵抗あり。LT挿入または気管挿管後は抵抗なく良好。Vfに対し除細動3回後にサイナスリズムへ復帰。", "hosp": "○○総合病院（三次救急・心臓カテーテル24h対応）", "hosp_info": "直近二次病院（かかりつけ）10分・三次病院20分・ドクターヘリ要請可。STEMI疑いのため三次搬送が望ましい。", "vstruct": {"1": {"jcs": "1", "rr": "28", "hr": "100", "bps": "100", "bpd": "70", "spo2": "92", "temp": "36.8", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "ST上昇 II・III・aVF誘導（下壁梗塞疑い）", "vomit": "", "nausea": "あり", "palsy": "", "bleed": "", "note": "顔貌：苦悶。皮膚：冷汗・湿潤。頸静脈怒張あり。聴診：湿性ラ音（両肺野）。"}, "2": {"jcs": "3", "rr": "28", "hr": "130", "bps": "90", "bpd": "60", "spo2": "90", "temp": "36.8", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "ST上昇 II・III・aVF 持続", "vomit": "", "nausea": "あり", "palsy": "", "bleed": "", "note": "顔貌：苦悶。冷汗・湿潤持続。頸静脈怒張あり。湿性ラ音持続。呼びかけにうなずくが苦しくて発語不可。心原性ショック移行。"}, "3": {"jcs": "300", "rr": "0", "hr": "0", "bps": "0", "bpd": "0", "spo2": "", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "対光反射なし", "ecg": "Vf（除細動3回後にサイナスリズム）", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "顔貌：蒼白。冷汗・湿潤。CPA移行（車内収容5分後）。"}}, "trainingPoints": ["緊急度・重症度から早期搬送を判断・実施できたか", "ショック判断ができ、早期に酸素投与を実施したか", "心筋梗塞（特に下壁梗塞・右室梗塞合併）を考慮できたか", "酸素投与後にSpO2を確認し、投与量を調整／気道確保を実施したか", "心停止を早期に判断できたか（Vf検出と迅速除細動）"], "dynamicScript": "\n■ 酸素濃度別 SpO2 反応（処置反応の参考）\n  ・なし     : 92%(P1) → 90%(P2) → 段階的に86→80%(P2末期)\n  ・中濃度    : 94%(P1) → 92%(P2) → 88→83%\n  ・高濃度    : 98%(P1) → 95%(P2) → 88→84%\n  ・補助換気   : 92〜86%\n■ Phase2→3 移行（CPA前）\n  ・脈拍は徐々に上昇し最大160回/分\n  ・JCS Ⅱ-30 まで低下したら **舌根沈下による上気道閉塞**が出現。下顎挙上で改善\n■ Phase3（CPA）\n  ・心電図はVf。除細動を **3回**実施後にサイナスリズムへ復帰\n  ・BVM換気では胸郭挙上不良・抵抗あり。LT挿入または気管挿管後は換気抵抗消失", "procedureHooks": {"酸素投与（高濃度）": "SpO2 92→98%に改善。冷汗持続。", "酸素投与（中濃度）": "SpO2 92→94%に改善。", "補助換気": "胸郭挙上得られ、SpO2 86→92%に改善。", "下顎挙上": "気道開通、鼾呼吸消失。", "気道確保": "気道開通、換気量改善。", "除細動": "Vf持続（1回目・2回目）→3回目で洞調律へ復帰。CPR継続を。", "胸骨圧迫": "圧迫実施中。ETCO2 適正。脈拍未触知。", "BVM": "BVM換気抵抗あり、胸郭挙上不良。", "LT挿入": "LT挿入後は換気抵抗なし、両肺野で換気音聴取良好。", "挿管": "気管挿管後は換気抵抗なし、両肺野で換気音聴取良好。", "輸液": "末梢確保完了、生食100mL/h で開始。", "アドレナリン": "アドレナリン1mg静注実施。次のリズムチェックで評価。"}}, {"id": "tmpl_sah_55f", "name": "②意識障害（くも膜下出血）", "age": "55歳", "sex": "女性", "type": "stroke", "chief": "意識障害（卒倒）", "scene": "冬場の朝8時頃、自宅トイレで排便中に卒倒。仰向けで鼾呼吸あり、嘔吐跡。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。55歳女性、家族通報。冬場の朝8時頃トイレで排便中に卒倒、仰向けで鼾をかいて倒れている。既往に高血圧・II型糖尿病、近隣クリニックかかりつけ。直近二次病院5分、三次病院15分、ドクターヘリ要請可能。", "disprate": 0.9, "p1": "（無表情・発語なし。鼾呼吸あり。痛み刺激で逃避動作）", "f1": "発症時刻は朝7:45。それまで普段通りでした。普段の血圧は高い時で150。降圧剤と糖尿病薬（食後高血糖改善薬）を内服。インスリン・SU剤の使用はありません。最終食事は7:30。", "p2": "（無表情・無反応）", "r2": "下顎挙上で鼾呼吸消失・SpO2改善。再嘔吐あり、側臥位で誤嚥防止。", "p3": "（無反応・発語なし）", "r3": "搬送中に強直性痙攣→Vfへ移行。1回除細動でPEAへ。CPR継続。", "hosp": "○○脳神経外科センター（三次・脳血管内治療24h対応）", "hosp_info": "直近二次病院5分・三次病院（脳神経外科）15分・ドクターヘリ要請可。SAH疑いのため三次搬送が望ましい。", "vstruct": {"1": {"jcs": "20", "rr": "20", "hr": "110", "bps": "180", "bpd": "110", "spo2": "93", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "対光反射あり・左右差なし", "ecg": "洞性頻脈", "vomit": "あり（嘔吐跡）", "nausea": "", "palsy": "評価困難", "bleed": "", "note": "顔貌：無表情。鼾呼吸あり（舌根沈下疑い）。GCS 9（E3 V2 M4）。頭部外傷なし。"}, "2": {"jcs": "100", "rr": "14", "hr": "80", "bps": "200", "bpd": "130", "spo2": "93", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "サイナスリズム", "vomit": "あり（再発）", "nausea": "", "palsy": "", "bleed": "", "note": "血圧上昇・徐脈傾向（Cushing現象疑い）。嘔吐再発あり、誤嚥注意。再破裂予防のため安静・刺激回避。"}, "3": {"jcs": "300", "rr": "10", "hr": "59", "bps": "220", "bpd": "150", "spo2": "75", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "洞性徐脈→Vf移行（搬送中）", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "強直性痙攣出現。SpO2低下（酸素投与下75%、補助換気で88%）。搬送中Vf→1回除細動後PEAへ。"}}, "trainingPoints": ["くも膜下出血を疑うことができたか（突然発症・激しい頭痛/卒倒・嘔吐）", "迅速搬送・安全搬送（再破裂予防：刺激最小化・血圧管理）の判断と実施", "再破裂に注意した活動（不必要な刺激回避・体動制限・暗環境）", "鼾呼吸（舌根沈下）への素早い気道確保", "嘔吐への対応（吸引・側臥位）と誤嚥予防", "突然のVfへの素早い除細動実施", "低血糖鑑別のための血糖測定実施"], "dynamicScript": "\n■ Phase1（接触時）\n  ・鼾呼吸あり（舌根沈下）。下顎挙上または気道確保で鼾呼吸消失・SpO2改善\n  ・酸素濃度別 SpO2: なし93% / 中濃度97% / 高濃度99%\n■ Phase2（車内収容後）\n  ・血圧上昇・徐脈傾向（Cushing現象）が出現\n  ・嘔吐の再発あり（誤嚥注意、側臥位推奨）\n  ・酸素濃度別 SpO2: なし93% / 中濃度96% / 高濃度98%\n■ Phase2→3 移行\n  ・車内収容5分後に **強直性痙攣**が出現\n  ・SpO2 75%まで低下、補助換気で88%まで回復\n■ Phase3（搬送中CPA）\n  ・Vfに移行。**除細動1回後にPEA**へ移行\n  ・PEA後はCPRと特定行為（輸液路・薬剤投与）を継続", "procedureHooks": {"下顎挙上": "鼾呼吸消失、SpO2 93→97%に改善、気道開通。", "気道確保": "鼾呼吸消失、SpO2 改善、気道開通。", "吸引": "口腔内嘔吐物を吸引、誤嚥防止。", "側臥位": "誤嚥予防として適切。再破裂予防のため愛護的に。", "酸素投与（高濃度）": "SpO2 93→99%に改善。", "酸素投与（中濃度）": "SpO2 93→97%に改善。", "補助換気": "痙攣・低換気時はSpO2 75→88%に改善。", "除細動": "Vfに対して1回除細動 → PEAへ移行。CPR継続を。", "胸骨圧迫": "PEA中、CPR継続。ETCO2 適正。", "アドレナリン": "アドレナリン1mg静注実施。次のリズムチェックで評価。", "輸液": "末梢確保完了、生食で開始。", "血糖測定": "血糖値110 mg/dL（低血糖は否定的）。"}}, {"id": "tmpl_hypogly_70m", "name": "③意識障害（低血糖）", "age": "70歳", "sex": "男性", "type": "other", "chief": "意識障害", "scene": "自宅寝室。家族が起こしに行ったところ意識レベル低下を発見。冷汗著明・蒼白。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。70歳男性、家族通報。昨日から体調不良で20時頃に早めに就寝、今朝起床せず家族が確認したところ意識レベル低下を発見。既往に高血圧・糖尿病あり、近隣クリニックかかりつけ。かかりつけ30分・直近二次15分・三次30分・ドクターヘリ要請不可。", "disprate": 0.9, "p1": "（うめき声、断片的発語のみ。問いかけに目を開けようとするが応答困難）", "f1": "昨日から体調が悪く20時頃に早めに就寝しました。昨日は食欲がなくほとんど食事をしていません（水分は摂っていました）。最終食事は昨日19時です。経口血糖降下薬と降圧薬を服用中。アレルギーはなし。頭痛は訴えていませんでした。", "p2": "（意識やや回復）うん…大丈夫…ありがとう…（顔色なお悪い、汗ばむ）", "r2": "ブドウ糖投与後、意識・バイタル次第に改善。再測定 血糖 120 mg/dL。発汗・湿潤は持続。", "p3": "（さらに改善し会話可能）気分はだいぶ楽になりました。", "r3": "搬送中、安定経過。原疾患（感染症等）の評価必要。", "hosp": "○○総合病院（二次救急）", "hosp_info": "かかりつけ30分・直近二次15分・三次30分・ドクターヘリ要請不可。低血糖は二次でも対応可能だが、原疾患（感染症・体温37.5℃・食事摂取不良）の精査必要。", "vstruct": {"1": {"jcs": "30", "rr": "24", "hr": "100", "bps": "140", "bpd": "90", "spo2": "88", "temp": "37.5", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 9（E2 V2 M5）。顔貌：蒼白。皮膚：冷汗・湿潤。鼾呼吸あり（軽度舌根沈下）。聴診：正常。【血糖測定で 30 mg/dL（重症低血糖）と判明】。"}, "2": {"jcs": "3", "rr": "24", "hr": "90", "bps": "130", "bpd": "60", "spo2": "95", "temp": "37.5", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "洞調律", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "ブドウ糖投与後。GCS 14（E4 V4 M6）に改善。冷汗・湿潤は持続。再測定 血糖 120 mg/dL。"}, "3": {"jcs": "1", "rr": "18", "hr": "80", "bps": "120", "bpd": "70", "spo2": "98", "temp": "37.4", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "洞調律", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "搬送中、意識清明・安定経過。発熱は持続のため原疾患（感染症）の評価が必要。"}}, "trainingPoints": ["状況・身体所見から意識障害の鑑別を試みたか（AIUEOTIPS等の系統的評価）", "血糖測定を確実に実施したか（意識障害患者では必須）", "低血糖確定後にブドウ糖投与プロトコルに従って実施したか", "ブドウ糖投与後の再評価（血糖再測定・意識/バイタル再評価）を適切に実施したか", "鼾呼吸（舌根沈下）への気道確保を実施したか", "原疾患（発熱37.5℃・食事摂取不良 → 感染症の可能性）を考慮したか"], "dynamicScript": "\n■ Phase1（接触時：低血糖状態）\n  ・JCS Ⅱ-30、鼾呼吸あり。気道確保（下顎挙上）で改善\n  ・酸素濃度別 SpO2: なし88% / 中濃度99% / 高濃度99%\n  ・**血糖測定を実施すれば 30 mg/dL（重症低血糖）が判明**\n  ・血糖測定なしでは原因不明のまま\n■ 重要な分岐\n  ・**ブドウ糖投与により Phase1→Phase2 に自動進行**（投与30秒後）\n  ・未投与であれば JCS は徐々に低下し気道閉塞リスク増大\n■ Phase2（ブドウ糖投与後）\n  ・意識・バイタル次第に改善（JCS Ⅰ-3、HR 100→90、SpO2 88→95%）\n  ・再測定で血糖 120 mg/dL\n  ・酸素濃度別 SpO2: なし95% / 中濃度99% / 高濃度99%\n■ 鑑別ポイント\n  ・体温37.5℃・昨日からの食事摂取不良 → **感染症（原疾患）の可能性**\n  ・経口血糖降下薬服用＋食事摂取不良 → 薬剤性低血糖の典型像", "procedureHooks": {"血糖測定": "血糖値 30 mg/dL（重症低血糖）と判明。", "ブドウ糖": "50%ブドウ糖 40mL を静注。約30秒後、意識・バイタルが改善（JCS Ⅱ-30→Ⅰ-3、HR 100→90、SpO2 88→95%）。再測定で血糖 120 mg/dL。", "ブドウ糖投与": "50%ブドウ糖 40mL を静注。約30秒後、意識・バイタルが改善（JCS Ⅱ-30→Ⅰ-3、HR 100→90、SpO2 88→95%）。再測定で血糖 120 mg/dL。", "下顎挙上": "鼾呼吸消失、気道開通、SpO2 88→92%に改善。", "気道確保": "鼾呼吸消失、気道開通。", "吸引": "口腔内に唾液貯留あり、吸引で除去。", "酸素投与（高濃度）": "SpO2 88→99%に改善。", "酸素投与（中濃度）": "SpO2 88→99%に改善。", "輸液": "末梢静脈路確保完了。低血糖確定後はブドウ糖投与準備。", "体温測定": "体温 37.5℃（軽度発熱、感染症の可能性）。"}, "phaseAdvanceRules": {"1": {"triggers": ["ブドウ糖", "ブドウ糖投与", "50%ブドウ糖"], "delaySec": 30, "advanceTo": 2, "message": "ブドウ糖投与により 30秒後に Phase2（改善）へ自動移行します"}}}, {"id": "tmpl_sepsis_70m", "name": "④ショック（敗血症性ショック）", "age": "70歳", "sex": "男性", "type": "other", "chief": "発熱・呼吸苦", "scene": "特養施設1階ベッド上で仰臥位。3日前から微熱・感冒症状、本日朝に高熱と頻呼吸を施設職員が発見。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "特養○○", "dispatch": "救急指令、救急1。70歳男性、特養施設職員通報。3日前から37℃の微熱と感冒症状、昨日夕方から発熱悪化、本日朝の見回りで高熱と呼吸苦・会話困難。既往に高血圧、近隣クリニックかかりつけ。直近二次30分・三次30分・ドクターヘリ早朝で要請不可。", "disprate": 0.9, "p1": "（呼吸が早く苦しそう、会話困難）はぁ…はぁ…（うなずき程度）", "f1": "3日前から感冒症状と微熱（37.0℃）あり様子見。昨日夕方から熱が上がり（37.9℃）呼吸が苦しそうでしたが「大丈夫」と言うので様子を見ていました。本日朝の見回りで熱がさらに上がり、ハーハーと呼吸苦のため通報しました。最終食事は昨日18時頃に少量、水分も少しのみ。尿はあまり出ていません。普段は自立歩行・ADL良好。", "p2": "（さらに意識低下、呼びかけに反応薄）", "r2": "補助換気でSpO2改善傾向。下肢挙上（ショック体位）で血圧わずか5mmHg上昇のみ。輸液で一時的に保持されるが3分後にPEA移行。", "p3": "（無反応・発語なし）", "r3": "PEA。胸骨圧迫・換気は良好（抵抗なし）。アドレナリン投与しても波形変化なし、自己心拍再開せず。", "hosp": "○○総合病院（二次救急・集中治療室）", "hosp_info": "直近二次30分・三次30分・ドクターヘリ早朝で要請不可。敗血症性ショック疑い、ICU管理可能な施設が望ましい。特定行為の指示要請が必要。", "vstruct": {"1": {"jcs": "20", "rr": "40", "hr": "100", "bps": "95", "bpd": "30", "spo2": "88", "temp": "39.3", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 10（E3 V2 M5）。顔貌：正常。皮膚：温かい（warm shock）。頸静脈怒張なし。聴診：湿性ラ音。発熱・頻呼吸・低血圧（脈圧狭小）→ qSOFA 3点・敗血症性ショック疑い。"}, "2": {"jcs": "100", "rr": "30", "hr": "120", "bps": "85", "bpd": "30", "spo2": "85", "temp": "39.3", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 9（E2 V2 M5）。皮膚：温かい・湿潤。頸静脈怒張なし。湿性ラ音持続。意識さらに低下（distributive shock 進行）。輸液後一時的にHR 140・BP 75/35（refractory shock）。"}, "3": {"jcs": "300", "rr": "0", "hr": "0", "bps": "0", "bpd": "0", "spo2": "", "temp": "39.0", "pupR": "4", "pupL": "4", "pupNote": "対光反射なし", "ecg": "PEA", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "心肺停止。PEA。換気抵抗なし、胸骨圧迫実施中。アドレナリン投与しても波形変化なし、自己心拍再開せず（refractory septic shock）。"}}, "trainingPoints": ["初期評価でショックと判断できたか（脈圧狭小・頻脈・頻呼吸・SpO2低下）", "ショック判断 → 重要臓器への酸素供給不足を理解し、高濃度酸素を投与できたか", "ショックの分類を理解しているか（distributive/septic vs cardiogenic vs hypovolemic vs obstructive）", "心原性ショックを否定できているか（頸静脈怒張なし・温かい皮膚・脈圧狭小・下腿浮腫なし）", "ワーストシナリオ（CPA移行）に備えた準備（AED装着・モニター継続）ができたか", "CPA早期認識、波形確認、特定行為（輸液・LT/挿管・アドレナリン）の指示要請ができたか", "感染源の評価（呼吸器症状・尿量低下・湿性ラ音）と適切な搬送先選定"], "dynamicScript": "\n■ Phase1（接触時：warm shock）\n  ・JCS Ⅱ-20、頻呼吸40回/分、頻脈100、BP 95/30（脈圧狭小）、SpO2 88%、体温39.3℃\n  ・**温かい皮膚・頸静脈怒張なし**（心原性除外、distributive/septic shock の所見）\n  ・酸素濃度別 SpO2: なし88% / 中濃度88% / 高濃度88% / **補助換気90%（V/Q mismatch のため酸素のみでは改善困難）**\n  ・下肢挙上で血圧わずか5mmHg上昇（前負荷増加効果限定的）\n■ Phase2（車内収容後：意識低下進行）\n  ・JCS Ⅲ-100、HR 120、BP 85/30、SpO2 85%、体温39.3℃継続\n  ・酸素濃度別 SpO2: 補助換気90% / 高濃度85% / 中濃度80%\n■ 重要な分岐：輸液の効果\n  ・**輸液開始しても3分後にPEA移行**（refractory septic shock）\n  ・輸液後の一時バイタル：HR 140↑・BP 75/35↓（前負荷反応性低下＝refractory shock）\n  ・輸液なしでも搬送中に PEA 移行\n■ Phase3（CPA：PEA）\n  ・PEA、換気抵抗なし、胸骨圧迫継続\n  ・アドレナリン投与しても波形変化なし、自己心拍再開せず\n  ・搬送先到着まで CPR・特定行為継続", "procedureHooks": {"ショック体位": "下肢挙上で血圧わずか5mmHg上昇（前負荷増加効果限定的）。", "下肢挙上": "下肢挙上で血圧わずか5mmHg上昇。", "酸素投与（高濃度）": "SpO2 88→88%（変化なし、V/Q mismatch のため）。", "酸素投与（中濃度）": "SpO2 88→88%（変化なし）。", "補助換気": "BVM換気でSpO2 88→90%に改善。胸郭挙上良好、抵抗なし。", "輸液": "末梢静脈路確保、生理食塩水急速投与。一時的にBP維持されるがHR 120→140↑、BP 85/30→75/35↓（refractory shock）。約3分後にPEA移行。", "心肺機能停止前輸液": "末梢確保完了、急速輸液開始。一時保持されるがrefractory shock のため約3分でPEA移行。", "胸骨圧迫": "圧迫継続中。ETCO2 適正。", "アドレナリン": "アドレナリン1mg静注。波形変化なし、自己心拍再開せず。", "BVM": "BVM換気抵抗なし、胸郭挙上良好。", "LT挿入": "LT挿入後も換気抵抗なし、両肺野で換気音聴取。", "挿管": "気管挿管後も換気抵抗なし、良好な換気。", "AED装着": "AED装着完了、波形確認可能。Phase2でPEA → ショック非適応の表示。", "血糖測定": "血糖値 130 mg/dL（低血糖は否定）。"}, "phaseAdvanceRules": {"2": {"triggers": ["輸液", "輸液開始", "心肺機能停止前輸液", "急速輸液"], "delaySec": 180, "advanceTo": 3, "message": "輸液開始 → 3分後にPEA移行（refractory septic shock）"}}}];
+
+function applyBuiltinTemplate(id){
+  const tmpl = BUILTIN_SCENARIOS.find(s => s.id === id);
+  if(!tmpl){ toast && toast('テンプレートが見つかりません'); return; }
+  // 既存の loadScenario と同じフィールドセットでフォームを埋める
+  const fields = ['name','age','chief','scene','unit','address','landmark','dispatch',
+                  'p1','f1','p2','v2','r2','p3','v3','r3','hosp','hosp_info'];
+  fields.forEach(f => {
+    const el = document.getElementById('s_' + f);
+    if(el && tmpl[f] !== undefined) el.value = tmpl[f];
+  });
+  const t = document.getElementById('s_type');     if(t) t.value = tmpl.type || 'other';
+  const sx = document.getElementById('s_sex');     if(sx) sx.value = tmpl.sex || '男性';
+  const dt = document.getElementById('s_disptype');if(dt) dt.value = tmpl.disptype || '救急';
+  const dr = document.getElementById('s_disprate');
+  if(dr){
+    dr.value = tmpl.disprate || 0.9;
+    const dv = document.getElementById('s_disprateVal'); if(dv) dv.textContent = tmpl.disprate || 0.9;
+  }
+  // 構造化バイタルを各フェーズに展開
+  for(let p = 1; p <= 3; p++){
+    if(tmpl.vstruct && tmpl.vstruct[p]){
+      applyVitalStruct(p, tmpl.vstruct[p]);
+    }
+  }
+  // dynamicScript / procedureHooks / trainingPoints を scenario に持ち回るための隠しフィールド代替として
+  // window 上にキャッシュし、訓練開始時に scenario へ写し込む
+  window._builtinTemplateExtras = {
+    dynamicScript: tmpl.dynamicScript || '',
+    procedureHooks: tmpl.procedureHooks || {},
+    trainingPoints: tmpl.trainingPoints || [],
+    phaseAdvanceRules: tmpl.phaseAdvanceRules || {}
+  };
+  toast && toast('テンプレート「' + tmpl.name + '」を適用しました');
+}
+
+function onTemplateSelect(){
+  const sel = document.getElementById('tmplSelect');
+  if(!sel || !sel.value) return;
+  applyBuiltinTemplate(sel.value);
 }
 
 function collectForm(){
@@ -1419,6 +1728,11 @@ function collectForm(){
     hosp: document.getElementById('s_hosp').value,
     hosp_info: document.getElementById('s_hosp_info').value,
     vstruct: {1: collectVitalStruct(1), 2: collectVitalStruct(2), 3: collectVitalStruct(3)},
+    // テンプレート由来の動的振舞いヒント
+    dynamicScript: (window._builtinTemplateExtras && window._builtinTemplateExtras.dynamicScript) || '',
+    procedureHooks: (window._builtinTemplateExtras && window._builtinTemplateExtras.procedureHooks) || {},
+    trainingPoints: (window._builtinTemplateExtras && window._builtinTemplateExtras.trainingPoints) || [],
+    phaseAdvanceRules: (window._builtinTemplateExtras && window._builtinTemplateExtras.phaseAdvanceRules) || {},
   };
   // 構造化バイタルがあれば v1/v2/v3 を再構築（自由記述だけならそのまま）
   for(let p=1; p<=3; p++){
@@ -2138,7 +2452,7 @@ function _createCallRecog(){
       if(res.isFinal) sessionFinal += res[0].transcript + ' ';
       else interim += res[0].transcript;
     }
-    callState.transcript = fixHomophones((callState.priorSessions || '') + sessionFinal);
+    callState.transcript = fixHomophones(_dedupeRepeats((callState.priorSessions || '') + sessionFinal));
     const tEl = document.getElementById('callTranscript');
     if(tEl){
       tEl.textContent = callState.transcript + (interim ? ('〔' + interim + '〕') : '');
@@ -2157,7 +2471,7 @@ function _createCallRecog(){
   };
   r.onend = ()=>{
     // このインスタンスで確定した分を priorSessions に吸収
-    callState.priorSessions = callState.transcript;
+    callState.priorSessions = _dedupeRepeats(callState.transcript || '');
     if(callState.recording){
       setTimeout(()=>{
         if(!callState.recording) return;
@@ -2190,6 +2504,33 @@ function startCallRecord(){
   catch(e){ toast('録音開始に失敗: '+e.message); callState.recording=false; setCallButtonsState(false); }
 }
 
+
+// ============================================================
+// 特定行為の指示要請（病院交渉用）
+// 通話画面のトグルボタンで選択 → stopCallAndAsk 時に AI へ送信
+// ============================================================
+let tokuteiSelected = new Set();
+function toggleTokutei(name){
+  if(tokuteiSelected.has(name)){
+    tokuteiSelected.delete(name);
+  } else {
+    tokuteiSelected.add(name);
+  }
+  renderTokuteiBar();
+}
+function renderTokuteiBar(){
+  document.querySelectorAll('.tk-btn').forEach(b => {
+    b.classList.toggle('on', tokuteiSelected.has(b.dataset.tk));
+  });
+}
+function clearTokutei(){
+  tokuteiSelected.clear();
+  renderTokuteiBar();
+}
+function getTokuteiList(){
+  return Array.from(tokuteiSelected);
+}
+
 async function stopCallAndAsk(){
   // 認識が落ちた状態でも transcript があれば送信できるようにする
   const wasRecording = callState.recording;
@@ -2207,8 +2548,14 @@ async function stopCallAndAsk(){
   if(!apiKey){ toast('APIキーを設定してください'); return; }
   const dept = HOSPITAL_DEPTS.find(d=>d.id===callState.deptId) || HOSPITAL_DEPTS[0];
   const sys = buildHospitalCallPrompt(dept);
+  // 特定行為の指示要請を transcript に追加
+  const tkList = getTokuteiList();
+  let composite = transcript;
+  if(tkList.length){
+    composite += '\n\n【特定行為の指示要請（救急隊から）】\n' + tkList.map(t => '・' + t).join('\n');
+  }
   try{
-    const reply = await callAI(sys, [{role:'user', content:transcript}]);
+    const reply = await callAI(sys, [{role:'user', content:composite}]);
     document.getElementById('callStateLine').textContent = '✅ 医師の回答（' + dept.name + '）';
     const box = document.getElementById('callReplyBox');
     box.style.display = 'block';
@@ -2246,9 +2593,22 @@ ${dept.scope}
 3) **受け入れ承諾**：科目が適切で情報も揃っている場合：
    「受け入れ可能です。○○分後に到着でよろしいですね。」と簡潔に承諾。
 
+4) **特定行為の指示判定**（メッセージに「特定行為の指示要請」項目が含まれる場合）：
+   各特定行為について、患者の現在の病態と適応条件を照らして「指示」または「指示しない」を判定し、簡潔に伝える。
+   主な判定基準：
+   ・**心肺機能停止前輸液**：ショック（収縮期90mmHg以下 or ショック徴候）であり末梢確保が可能なら指示
+   ・**心肺停止傷病者への輸液**：CPAであり静脈路必要時は指示。原因検索や薬剤投与経路として有用
+   ・**LT/LM挿入**：意識消失（JCS300相当）かつBVM換気困難・嘔吐リスク等で指示
+   ・**気管挿管**：原則として認定救急救命士のみ。意識消失＋換気困難で指示（事業者の認定状況にも依る）
+   ・**アドレナリン投与**：心肺停止であり、心電図波形が **VF・無脈性VT・PEA・目撃ありの心静止**のいずれかである場合に指示（目撃なしの心静止は対象外）
+   ・**ブドウ糖投与**：血糖測定で **50mg/dL未満**の低血糖が確定している場合に指示
+   応答例：「心肺機能停止前輸液は指示します。LT挿入は意識保たれているため不要、まず気道確保で。」
+   不適応の場合は理由を1文で。
+
 【回答スタイル】
-・1〜2文。実際の受入医師のように落ち着いた口調。
+・1〜2文（特定行為が複数なら箇条書きで簡潔に）。実際の受入医師のように落ち着いた口調。
 ・前置き・冗長な説明は不要。
+・特定行為の指示要請があれば、受け入れ判断と特定行為判定の**両方**を必ず回答する。
 ・自分から余計な情報や指示は出さない。`;
 }
 
@@ -2351,8 +2711,54 @@ function formatTime(s){
 // ============================================================
 // ROLE SELECT
 // ============================================================
+
+// ============================================================
+// 処置選択（処置反応モード時にボタンで送信）
+// ============================================================
+function doProc(text){
+  if(!text) return;
+  if(currentRole !== 'response'){
+    selRole('response');
+  }
+  document.getElementById('txtIn').value = text + '。患者の反応・バイタル変化を教えてください。';
+  setTimeout(()=>{ try{ send(); }catch(_){} }, 100);
+  // 処置トリガによるフェーズ自動遷移をチェック
+  try{ checkPhaseAdvanceTrigger(text); }catch(e){ console.error('phaseAdvance error:', e); }
+}
+
+// ============================================================
+// 処置トリガによるフェーズ自動遷移
+// シナリオの phaseAdvanceRules[currentPhase].triggers に処置名が
+// 含まれていれば、delaySec 後に setPhase(advanceTo) を実行する
+// ============================================================
+function checkPhaseAdvanceTrigger(procText){
+  if(!scenario || !scenario.phaseAdvanceRules) return;
+  const rules = scenario.phaseAdvanceRules[currentPhase] || scenario.phaseAdvanceRules[String(currentPhase)];
+  if(!rules || !rules.triggers || !rules.triggers.length) return;
+  if(rules._triggered) return;  // 同フェーズ内では1回のみ発火
+  const hit = rules.triggers.find(t => procText.includes(t));
+  if(!hit) return;
+  rules._triggered = true;
+  const delaySec = rules.delaySec || 30;
+  const target = rules.advanceTo || (currentPhase + 1);
+  toast && toast('処置「' + hit + '」検知 — ' + delaySec + '秒後にフェーズ移行');
+  addSys && addSys('⏱ 処置トリガ：' + (rules.message || ('「' + hit + '」により ' + delaySec + '秒後に Phase' + target + ' へ移行予約')));
+  setTimeout(()=>{
+    if(target >= 1 && target <= 3){
+      setPhase(target);
+      toast && toast('🔁 フェーズ移行: ' + (phaseLabels[target] || ('Phase' + target)));
+      addSys && addSys('🔁 自動フェーズ移行 → ' + (phaseLabels[target] || ('Phase' + target)));
+    }
+  }, delaySec * 1000);
+}
+function _toggleProcPanel(role){
+  const pp = document.getElementById('procPanel');
+  if(pp) pp.style.display = (role === 'response') ? 'block' : 'none';
+}
+
 function selRole(r){
   currentRole=r;
+  _toggleProcPanel(r);
   // 病院役を選択 → 通話画面を自動オープン
   if(r==='hospital' && typeof openHospitalCall==='function' && document.getElementById('hospCallOverlay')){
     setTimeout(openHospitalCall, 50);
@@ -2394,13 +2800,33 @@ function buildSystemPrompt(role, phase){
 患者：${scenario.age} ${scenario.sex}　主訴：${scenario.chief}
 現場：${scenario.scene}
 現在フェーズ：${phaseLabels[phase]||''}
-`;
+${scenario.dynamicScript ? '\n【シナリオ動的振舞いルール（あなたの応答指針）】' + scenario.dynamicScript + '\n' : ''}${(scenario.procedureHooks && Object.keys(scenario.procedureHooks).length) ? ('\n【処置別の標準応答（処置反応役は厳密に従うこと）】\n' + Object.entries(scenario.procedureHooks).map(([k,v])=>'・'+k+' → '+v).join('\n') + '\n') : ''}`;
 
   const rolePrompts = {
     patient: `あなたは救急訓練シミュレーションの患者役です。
 ${baseInfo}
 【このフェーズの患者の状態・訴え】
 ${pd.patient}
+${(()=>{
+  const vs = (scenario.vstruct && scenario.vstruct[phase]) || {};
+  const jcs = parseInt(vs.jcs);
+  const ecg = (vs.ecg||'').toString();
+  const isCPA = /心肺停止|cpa|asystole|心静止|無脈性|電気活動なし|pea|vf|心室細動/i.test(ecg)
+              || /心肺停止|CPA|心静止/i.test(scenario.chief||'')
+              || /心肺停止|CPA|心静止|意識なし.*脈なし/i.test(pd.patient||'');
+  if(isCPA || jcs >= 300){
+    return '\n【絶対ルール】患者は心肺停止または完全意識消失（JCS300）の状態です。一切の発語・音声反応は不可。返答は必ず「（無反応・発語なし）」のみとしてください。';
+  } else if(jcs >= 200){
+    return '\n【絶対ルール】患者は重度意識障害（JCS200）です。痛み刺激で顔をしかめる程度。発語不可。返答は「（顔をしかめる）」「（うめき声）」など非言語的反応のみ。';
+  } else if(jcs >= 100){
+    return '\n【絶対ルール】患者は重度意識障害（JCS100）です。明瞭な言語応答は不可。返答は「（払いのけ動作）」「（うめき声）」「（無言）」など非言語的反応のみ。';
+  } else if(jcs >= 30){
+    return '\n【ルール】患者は意識朦朧（JCS' + jcs + '）です。短い断片的な単語・うめき声のみ。文章での会話は不可（最大3文字程度）。';
+  } else if(jcs >= 10){
+    return '\n【ルール】患者は意識軽度低下（JCS' + jcs + '）です。短い言葉でしか応答できません。1文以内・10文字以内で。';
+  }
+  return '';
+})()}
 
 救急隊員の問いかけに対して、患者本人として苦痛を伴いながら短く答えてください。
 返答は1〜2文のみ。長い説明不要。`,
@@ -2824,21 +3250,30 @@ async function getDoctorFB(){
   // Compile full activity log
   const logText = fullLog.map(l=>`[${l.phase||''}][${l.role}] Q:${l.query||''} A:${l.text}`).join('\n');
 
-  const sys=`あなたは救急医療・病院前救護の専門医・指導医です。
-以下の救急訓練の活動ログを見て、詳細な医学的フィードバックを行ってください。
+  const sys=`あなたは救急医療・病院前救護の専門医・指導医（中播磨・西播磨地域 MC協議会指示医師相当）です。
+以下の救急訓練の活動ログを、添付の【参照プロトコル】に照らして詳細な医学的フィードバックを行ってください。
 
 【シナリオ】${scenario?.name||''}　${scenario?.age||''} ${scenario?.sex||''}　主訴：${scenario?.chief||''}
+【症例タイプ】${({trauma:'外傷',cardiac:'心疾患',stroke:'脳卒中',other:'その他'})[scenario?.type]||'その他'}
 【総活動時間】${document.getElementById('totalTime').textContent}
 
-フィードバックの内容：
-1. 全体評価（良かった点）
-2. 問題点・改善すべき点
-3. バイタルサインの解釈と対応の適否
-4. 処置の優先順位・タイミング
-5. 病院交渉・搬送先選定の評価
-6. 次回への具体的アドバイス
+${(()=>{ const _p = (typeof getProtocolText==='function') ? getProtocolText() : ''; return _p ? ('【参照プロトコル — 中・西播磨MC協議会 R7.5改正『救急活動プロトコル』】\n' + _p + '\n【／参照プロトコル】') : '【参照プロトコル — 未設定】（プロトコル本文が読込まれていないため、一般的な救急医療指針に基づいて評価します）'; })()}
+${(scenario && scenario.trainingPoints && scenario.trainingPoints.length) ? ('\n【このシナリオの訓練評価ポイント（必ず項目別に評価すること）】\n' + scenario.trainingPoints.map((p,i)=>(i+1)+'. '+p).join('\n') + '\n') : ''}
 
-詳細かつ教育的に、日本語で記述してください。`;
+フィードバックは以下の構成で記述してください：
+1. 全体評価（プロトコル準拠点・良かった判断）
+2. 問題点・改善すべき点（プロトコル逸脱があれば該当条項を明記）
+3. バイタルサインの解釈と対応の適否（プロトコル基準値との比較）
+4. 処置の優先順位・タイミング（救急基本活動プロトコル／関連処置プロトコルとの整合性）
+5. 病院選定・搬送先選定の評価（外傷／脳卒中／心疾患などの該当プロトコルに基づく）
+6. プロトコル特例該当性の確認（DNAR・脳卒中機械的血栓回収適応・薬剤投与適応 等）
+7. 次回への具体的アドバイス
+
+【記述ルール】
+・該当プロトコルの章番号（例：「２(１)除細動プロトコル」「３外傷プロトコル」「４脳卒中プロトコル」など）を明示する。
+・プロトコル上の数値基準・適応条件を引用しながら評価する。
+・指導医が研修生に伝える口調で、教育的かつ具体的に。
+・冗長な前置きは避け、各項目を簡潔に箇条書きで2〜4点ずつ。`;
 
   try{
     const reply = await callAI(sys, [{role:'user',content:'活動ログ：\n'+logText+'\n\n上記の訓練についてフィードバックをお願いします。'}]);
@@ -2909,6 +3344,7 @@ let aonRecog = null;
 // 天の声ゲート: false=待機(隊員雑談を無視), true=会話継続
 let aonGate = false;
 let aonGateRole = null;
+let aonGateQuietUntil = 0;  // 役割切替直後の誤反応抑制タイマー
 let aonRestarting = false;
 
 // Keyword → role mapping
@@ -3048,21 +3484,11 @@ function aonLoop(){
             return;
           }
 
-          let q = trimmed
-            .replace(/(天の声|てんのこえ|テンノコエ)/g,'')
-            .replace(/[、,，。\s　]+/g,' ')
-            .trim();
-          q = q.replace(/(と会話させて|と会話する|と会話したい|交渉|を測定しました|測定しました|お願いします)/g,'').trim();
-
-          if(q.length >= 1){
-            setAonState('wake-detected');
-            setAonText('送信: "' + q + '"');
-            unlockAudio();
-            document.getElementById('txtIn').value = q;
-            setTimeout(()=>{ send(); }, 200);
-          } else {
-            setAonText('🟢 ' + roleLabels[newRole] + ' モード — 続けて話してください');
-          }
+          // 役割切替後は自動送信せず、明示的な質問が来るまで待機する
+          // （天の声に続く修飾語が誤って症状照会として送信されるのを防ぐ）
+          aonGateQuietUntil = Date.now() + 4000;  // 4秒間は誤反応抑制
+          setAonState('wake-detected');
+          setAonText('🟢 ' + roleLabels[newRole] + ' モード — ご質問をどうぞ（自動応答はしません）');
           return;
         }
         setAonText('「天の声、家族／本人／バイタル／病院」と続けてください');
@@ -3077,6 +3503,11 @@ function aonLoop(){
 
       // ④ ゲートON：継続会話として送信
       if(trimmed.length < 2) return;
+      // 役割切替直後はノイズ・残響による誤送信を防ぐ
+      if(Date.now() < aonGateQuietUntil){
+        setAonText('（切替直後の待機中… ご質問をお待ちしています）');
+        return;
+      }
       setAonState('wake-detected');
       setAonText('送信: "' + trimmed + '"');
       unlockAudio();
@@ -3334,6 +3765,9 @@ function toast(msg){
   t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2500);
 }
+
+// プロトコル状態表示の更新（ロード時とパネル切替時）
+window.addEventListener('load', ()=>{ try{ refreshProtocolStatus(); }catch(_){} });
 </script>
 </body>
 </html>
