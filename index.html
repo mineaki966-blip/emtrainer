@@ -1007,13 +1007,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <div style="font-size:10px;color:#3a7a5a;">回/分</div>
         </div>
       </div>
-      <!-- Rhythm -->
-      <div style="background:#050d0a;border-top:1px solid #0f3020;padding:10px 16px;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:10px;color:#3a7a5a;letter-spacing:0.08em;display:none;">心電図</span>
-        <span style="font-size:13px;font-weight:700;color:#00ff88;display:none;" id="mv_ecg">--</span>
-        <span style="margin-left:auto;font-size:10px;color:#3a7a5a;">GCS</span>
-        <span style="font-size:13px;font-weight:700;color:#ffd700;" id="mv_gcs">--</span>
-      </div>
+      <!-- Hidden rhythm holders（互換：表示はしない） -->
+      <span style="display:none;" id="mv_ecg">--</span>
+      <span style="display:none;" id="mv_gcs">--</span>
       <!-- Update button -->
       <div style="padding:10px 14px;background:#0a1f15;border-top:1px solid #0f3020;">
         <button class="btn btn-block" onclick="updateMonitorVitals()"
@@ -1959,7 +1955,7 @@ function setPhase(n){
 // ============================================================
 // PATIENT MONITOR
 // ============================================================
-let monitorData = { hr:'--', spo2:'--', bp:'--/--', rr:'--', ecg:'--', gcs:'--', st:'normal' };
+let monitorData = { hr:'--', spo2:'--', bp:'--/--', rr:'--', ecg:'--', gcs:'--', st:'normal', rhythm:'sinus' };
 let ecgAnimFrame = null;
 let ecgX = 0;
 
@@ -1978,6 +1974,31 @@ function showMonitor(){
   parseVitalsFromScenario();
   renderMonitorValues();
   startEcgAnimation();
+  // モニター音（HR同期ビープ／SpO2連動音程／CPAアラーム）
+  try{ startMonitorBeep(); }catch(_){}
+  // モニターを閉じるとき停止
+  const closeBtn = ov.querySelector('button[onclick*="monitorOverlay"]');
+  if(closeBtn && !closeBtn.dataset.beepHooked){
+    closeBtn.dataset.beepHooked = '1';
+    closeBtn.addEventListener('click', ()=>{ try{ stopMonitorBeep(); }catch(_){} });
+  }
+}
+
+// === リズム判定（ECGテキスト + HRから種別を決定） ===
+function _detectRhythm(ecgText, hrNum){
+  const t = (ecgText||'').toString();
+  // 強いキーワード優先（複合があってもCPA系を優先）
+  if(/心静止|asystole|電気活動なし(?!.*PEA)/i.test(t)) return 'asystole';
+  if(/(?<!無)\bVF\b|心室細動|細動波|Vf(?![a-z])|fibrillation/i.test(t)) return 'vf';
+  if(/PEA|無脈性電気活動/i.test(t)) return 'pea';
+  if(/\bVT\b|心室頻拍|wide.*tachy/i.test(t)) return 'vt';
+  if(hrNum === 0) return 'asystole';
+  if(/心房細動|AF|atrial fib/i.test(t)) return 'afib';
+  if(!isNaN(hrNum)){
+    if(hrNum > 130 || /頻脈|tachy/i.test(t)) return 'tachy';
+    if(hrNum < 50  || /徐脈|brady/i.test(t)) return 'brady';
+  }
+  return 'sinus';
 }
 
 function parseVitalsFromScenario(){
@@ -2006,6 +2027,8 @@ function parseVitalsFromScenario(){
   if(/ST上昇|ST\s*elev|STEMI|心筋梗塞/i.test(src)) monitorData.st = 'elevation';
   else if(/ST低下|ST\s*depress|NSTEMI|虚血/i.test(src)) monitorData.st = 'depression';
   else monitorData.st = 'normal';
+  // リズム判定
+  monitorData.rhythm = _detectRhythm(monitorData.ecg + ' ' + src, parseInt(monitorData.hr));
 }
 
 function renderMonitorValues(){
@@ -2053,6 +2076,7 @@ async function updateMonitorVitals(){
     if(/ST上昇|STEMI|心筋梗塞/i.test(reply)) monitorData.st='elevation';
     else if(/ST低下|NSTEMI|虚血/i.test(reply)) monitorData.st='depression';
     else monitorData.st='normal';
+    monitorData.rhythm = _detectRhythm(monitorData.ecg + ' ' + reply, parseInt(monitorData.hr));
     renderMonitorValues();
     // モニター更新時は音声応答しない（ユーザー要望）
     toast('📟 モニター値を更新しました');
@@ -2062,7 +2086,7 @@ async function updateMonitorVitals(){
   }
 }
 
-// Simple ECG animation on canvas
+// === ECG animation: リズム別波形 + 動的HR反映 ===
 function startEcgAnimation(){
   const canvas = document.getElementById('ecgCanvas');
   if(!canvas) return;
@@ -2070,8 +2094,59 @@ function startEcgAnimation(){
   const W = canvas.width, H = canvas.height;
   ecgX = 0;
   let prevY = H/2;
-  const hrNum = parseInt(monitorData.hr) || 80;
-  const interval = Math.round(60000 / hrNum / 16); // ms per pixel step
+  // 内部状態（毎フレーム monitorData から動的に取得）
+  let lastTickTs = performance.now();
+
+  function _yForRhythm(p, hrNum, rhythm, stShift){
+    // p: 0..1（拍内位置） 戻り値: y座標
+    if(rhythm === 'asystole'){
+      // 微小ノイズ付きフラットライン
+      return H/2 + (Math.random()-0.5)*1.2;
+    }
+    if(rhythm === 'vf'){
+      // 細動: 中振幅のランダム揺れ（QRSなし）
+      const amp = H*0.28;
+      // 3つのサインの合成 + ノイズで「不規則細動」感
+      const t = ecgX * 0.18;
+      const v = Math.sin(t*1.7) + Math.sin(t*2.3 + 1.0) + Math.sin(t*3.1 + 2.0);
+      return H/2 + (v/3)*amp + (Math.random()-0.5)*4;
+    }
+    if(rhythm === 'vt'){
+      // VT: 幅広QRS、規則的・速い
+      // 1拍を半分で正弦的な大波 → P/T相当はなし
+      const v = Math.sin(p * Math.PI * 2);          // -1..1
+      const r = (p<0.4) ? -Math.sign(v)*Math.pow(Math.abs(v),0.7) : 0;
+      let y = H/2 + r * H * 0.55;
+      return y;
+    }
+    if(rhythm === 'pea'){
+      // PEA: 弱い不規則QRS（電気活動はあるが脈なし、振幅低め）
+      let y = H/2;
+      if(p < 0.08) y = H/2 - 2;
+      else if(p < 0.12) y = H/2;
+      else if(p < 0.16) y = H/2 - H*0.18;
+      else if(p < 0.20) y = H/2 + 4;
+      else if(p < 0.45) y = H/2;
+      else y = H/2 - 2;
+      // 不規則化のため微小ジッター
+      return y + (Math.random()-0.5)*1.5;
+    }
+    // sinus / tachy / brady / afib（規則QRS、心拍に応じて間隔変化）
+    let y = H/2;
+    if(p < 0.05) y = H/2 - 4;                         // P wave
+    else if(p < 0.10) y = H/2;
+    else if(p < 0.12) y = H/2 + 14;                   // Q dip
+    else if(p < 0.15) y = H/2 - H*0.7;                // R spike
+    else if(p < 0.18) y = H/2 + 10;                   // S dip
+    else if(p < 0.28) y = H/2 + stShift;              // ST segment
+    else if(p < 0.42) y = H/2 - 6 + stShift*0.5;      // T wave
+    else y = H/2 + stShift*0.2;
+    if(rhythm === 'afib'){
+      // 心房細動: f波 + R-R不整（基線にゆらぎ）
+      y += (Math.random()-0.5)*3;
+    }
+    return y;
+  }
 
   function drawStep(){
     // Scroll left
@@ -2079,24 +2154,26 @@ function startEcgAnimation(){
     ctx.putImageData(imgData, 0, 0);
     ctx.clearRect(W-1, 0, 1, H);
 
-    // ECG waveform pattern (simple QRS + ST segment)
-    const cycle = Math.round(60000 / hrNum / 16);
-    const pos = ecgX % cycle;
-    const p = pos / cycle;
-    // ST偏位量: elevation=上向き(Y減少), depression=下向き(Y増加)
+    // 毎ステップで monitorData を読む（処置反映を即時に取り込む）
+    let hrNum = parseInt(monitorData.hr);
+    if(isNaN(hrNum) || hrNum <= 0) hrNum = 0;
+    const rhythm = monitorData.rhythm || 'sinus';
     const stShift = monitorData.st==='elevation' ? -10
                   : monitorData.st==='depression' ? 8 : 0;
-    let y = H/2;
-    if(p < 0.05) y = H/2 - 4;                         // P wave
-    else if(p < 0.10) y = H/2;
-    else if(p < 0.12) y = H/2 + 14;                   // Q dip
-    else if(p < 0.15) y = H/2 - H*0.7;                // R spike
-    else if(p < 0.18) y = H/2 + 10;                   // S dip
-    else if(p < 0.28) y = H/2 + stShift;              // ST segment (偏位反映)
-    else if(p < 0.42) y = H/2 - 6 + stShift*0.5;      // T wave（ST偏位時はやや連動）
-    else y = H/2 + stShift*0.2;                       // 基線もわずかに追従
-    ctx.strokeStyle = '#00ff88';
 
+    // 1拍あたりの x方向ステップ数（ms_per_pixel との関係で決定）
+    const effHr = (rhythm === 'vf') ? 250
+                : (rhythm === 'asystole') ? 60
+                : (rhythm === 'pea')      ? Math.max(30, hrNum||40)
+                : (rhythm === 'vt')       ? Math.max(160, hrNum||180)
+                : Math.max(30, hrNum || 80);
+    const cycle = Math.max(8, Math.round(60000 / effHr / 16));
+    const pos = ecgX % cycle;
+    const p = pos / cycle;
+    const y = _yForRhythm(p, effHr, rhythm, stShift);
+
+    // 描画色：CPA系は赤系
+    ctx.strokeStyle = (rhythm==='vf' || rhythm==='asystole' || rhythm==='pea') ? '#ff4d6e' : '#00ff88';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(W-2, prevY);
@@ -2106,8 +2183,18 @@ function startEcgAnimation(){
     ecgX++;
   }
 
+  // 描画ループ：HR や リズム種別に応じてインターバルを動的に決定
   function loop(){
     drawStep();
+    let hrNum = parseInt(monitorData.hr);
+    if(isNaN(hrNum) || hrNum <= 0) hrNum = 0;
+    const rhythm = monitorData.rhythm || 'sinus';
+    const effHr = (rhythm === 'vf') ? 250
+                : (rhythm === 'asystole') ? 60
+                : (rhythm === 'pea')      ? Math.max(30, hrNum||40)
+                : (rhythm === 'vt')       ? Math.max(160, hrNum||180)
+                : Math.max(30, hrNum || 80);
+    const interval = Math.max(8, Math.round(60000 / effHr / 16));
     ecgAnimFrame = setTimeout(loop, interval);
   }
   clearTimeout(ecgAnimFrame);
@@ -2184,6 +2271,129 @@ function drawLeadWaveform(spec){
     else ctx.lineTo(x,y);
   }
   ctx.stroke();
+}
+
+// ============================================================
+// モニター音（HR同期ビープ + SpO2連動音程 + CPAアラーム）
+// ============================================================
+let monitorBeep = {
+  ctx: null,
+  timer: null,
+  alarmOsc: null,
+  playing: false,
+  cpaAlarm: false
+};
+
+function _ensureMonAudioCtx(){
+  if(!monitorBeep.ctx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return false;
+    monitorBeep.ctx = new AC();
+  }
+  if(monitorBeep.ctx.state === 'suspended') monitorBeep.ctx.resume();
+  return true;
+}
+
+function _spo2ToFreq(spo2){
+  // 実機モニター風: SpO2 100% → 880Hz, SpO2低下で下がる
+  const v = parseInt(spo2);
+  if(isNaN(v)) return 700;
+  if(v >= 100) return 880;
+  if(v >= 95)  return 800;
+  if(v >= 92)  return 740;
+  if(v >= 90)  return 680;
+  if(v >= 85)  return 600;
+  if(v >= 80)  return 520;
+  if(v >= 70)  return 440;
+  if(v >= 60)  return 360;
+  return 300;
+}
+
+function _playMonBeep(){
+  if(!monitorBeep.ctx || !monitorBeep.playing) return;
+  const ctx = monitorBeep.ctx;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = _spo2ToFreq(monitorData.spo2);
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.18, now + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.10);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.12);
+}
+
+function _startCpaAlarm(){
+  if(!monitorBeep.ctx) return;
+  if(monitorBeep.alarmOsc) return;
+  const ctx = monitorBeep.ctx;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  // 連続的に少し変動するアラーム音
+  osc.frequency.setValueAtTime(700, ctx.currentTime);
+  gain.gain.value = 0.08;
+  // ピロピロパターン（800Hz↔550Hz を往復）
+  const lfo = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  lfo.frequency.value = 6;
+  lfoGain.gain.value = 120;
+  lfo.connect(lfoGain).connect(osc.frequency);
+  osc.connect(gain).connect(ctx.destination);
+  lfo.start();
+  osc.start();
+  monitorBeep.alarmOsc = { osc, gain, lfo };
+}
+
+function _stopCpaAlarm(){
+  if(!monitorBeep.alarmOsc) return;
+  try{ monitorBeep.alarmOsc.osc.stop(); }catch(_){}
+  try{ monitorBeep.alarmOsc.lfo.stop(); }catch(_){}
+  monitorBeep.alarmOsc = null;
+}
+
+function _scheduleNextMonBeep(){
+  if(!monitorBeep.playing){ return; }
+  const r = monitorData.rhythm || 'sinus';
+  const isCpa = (r==='vf' || r==='asystole' || r==='pea');
+  if(isCpa){
+    // アラーム音継続、ビープは停止
+    if(!monitorBeep.cpaAlarm){
+      monitorBeep.cpaAlarm = true;
+      _startCpaAlarm();
+    }
+    monitorBeep.timer = setTimeout(_scheduleNextMonBeep, 500);
+    return;
+  }
+  // ビープモード
+  if(monitorBeep.cpaAlarm){
+    monitorBeep.cpaAlarm = false;
+    _stopCpaAlarm();
+  }
+  let hr = parseInt(monitorData.hr);
+  if(isNaN(hr) || hr <= 0){
+    monitorBeep.timer = setTimeout(_scheduleNextMonBeep, 800);
+    return;
+  }
+  _playMonBeep();
+  const interval = Math.max(220, 60000 / hr);
+  monitorBeep.timer = setTimeout(_scheduleNextMonBeep, interval);
+}
+
+function startMonitorBeep(){
+  if(!_ensureMonAudioCtx()){ return; }
+  if(monitorBeep.playing) return;
+  monitorBeep.playing = true;
+  monitorBeep.cpaAlarm = false;
+  _scheduleNextMonBeep();
+}
+
+function stopMonitorBeep(){
+  monitorBeep.playing = false;
+  if(monitorBeep.timer){ clearTimeout(monitorBeep.timer); monitorBeep.timer = null; }
+  if(monitorBeep.cpaAlarm){ monitorBeep.cpaAlarm = false; _stopCpaAlarm(); }
 }
 
 // ============================================================
@@ -2736,6 +2946,92 @@ function doProc(text){
   setTimeout(()=>{ try{ send(); }catch(_){} }, 100);
   // 処置トリガによるフェーズ自動遷移をチェック
   try{ checkPhaseAdvanceTrigger(text); }catch(e){ console.error('phaseAdvance error:', e); }
+  // 処置別 procedureHooks に書かれた目標値へ滑らかに反映
+  try{ applyProcedureHookToMonitor(text); }catch(e){ console.error('procHookApply error:', e); }
+}
+
+// === procedureHooks 文字列から目標値を取り出してモニターを滑らかに更新 ===
+function applyProcedureHookToMonitor(procText){
+  if(!scenario || !scenario.procedureHooks) return;
+  const hooks = scenario.procedureHooks;
+  // 部分一致で最も長くマッチするキーを採用
+  let bestKey = null, bestLen = 0;
+  for(const k of Object.keys(hooks)){
+    if(procText && procText.indexOf(k) !== -1 && k.length > bestLen){
+      bestKey = k; bestLen = k.length;
+    }
+  }
+  if(!bestKey) return;
+  const hookStr = hooks[bestKey] || '';
+  // パターン: "SpO2 92→98%" / "HR 100→90" / "BP 90/60→120/70" / "RR 28→24"
+  const targets = {};
+  // SpO2
+  let m = hookStr.match(/SpO2[^0-9]*?(\d+)\s*[→\->]+\s*(\d+)/i);
+  if(m) targets.spo2 = m[2];
+  // HR
+  m = hookStr.match(/(?:HR|脈拍)[^0-9]*?(\d+)\s*[→\->]+\s*(\d+)/i);
+  if(m) targets.hr = m[2];
+  // BP（収縮/拡張）
+  m = hookStr.match(/(?:BP|血圧)[^0-9]*?(\d+)\s*\/\s*(\d+)\s*[→\->]+\s*(\d+)\s*\/\s*(\d+)/i);
+  if(m) targets.bp = m[3] + '/' + m[4];
+  // RR
+  m = hookStr.match(/(?:RR|呼吸数?)[^0-9]*?(\d+)\s*[→\->]+\s*(\d+)/i);
+  if(m) targets.rr = m[2];
+  // 体温
+  m = hookStr.match(/(?:体温|temp)[^0-9]*?(\d+(?:\.\d+)?)\s*[→\->]+\s*(\d+(?:\.\d+)?)/i);
+  if(m) targets.temp = m[2];
+  // 何も見つからない場合は単純な改善キーワードで微改善（例: "SpO2改善" 系）
+  if(Object.keys(targets).length === 0) return;
+  // 数秒かけて滑らかにトゥイーン
+  smoothTweenMonitor(targets, 3500);
+  if(typeof toast === 'function') toast('🔄 処置反映: ' + bestKey + ' → モニター更新');
+}
+
+// 既存トゥイーンが残っていればキャンセルできるよう ID 管理
+let _monTweenId = 0;
+function smoothTweenMonitor(targets, durationMs){
+  const id = ++_monTweenId;
+  const startTs = performance.now();
+  const dur = Math.max(500, durationMs|0);
+  // 開始値（数値化できないものはそのまま代入）
+  const start = {};
+  for(const k of Object.keys(targets)){
+    if(k === 'bp'){
+      const cur = (monitorData.bp||'').split('/');
+      start.bp = [parseInt(cur[0]), parseInt(cur[1])];
+    } else {
+      start[k] = parseFloat(monitorData[k]);
+    }
+  }
+  function step(){
+    if(id !== _monTweenId) return; // 別のトゥイーンに置換された
+    const t = Math.min(1, (performance.now() - startTs) / dur);
+    // ease-out
+    const e = 1 - Math.pow(1-t, 2);
+    for(const k of Object.keys(targets)){
+      if(k === 'bp'){
+        const tg = targets.bp.split('/').map(s=>parseInt(s));
+        const s0 = isNaN(start.bp[0]) ? tg[0] : start.bp[0];
+        const s1 = isNaN(start.bp[1]) ? tg[1] : start.bp[1];
+        const cs = Math.round(s0 + (tg[0]-s0)*e);
+        const cd = Math.round(s1 + (tg[1]-s1)*e);
+        monitorData.bp = cs + '/' + cd;
+      } else if(k === 'temp'){
+        const tg = parseFloat(targets[k]);
+        const s0 = isNaN(start[k]) ? tg : start[k];
+        monitorData[k] = (s0 + (tg-s0)*e).toFixed(1);
+      } else {
+        const tg = parseFloat(targets[k]);
+        const s0 = isNaN(start[k]) ? tg : start[k];
+        monitorData[k] = String(Math.round(s0 + (tg-s0)*e));
+      }
+    }
+    // リズム再判定（HRが変わるとtachy/bradyが変わる可能性）
+    monitorData.rhythm = _detectRhythm(monitorData.ecg + ' ' + (scenario && (scenario.v1||'') ), parseInt(monitorData.hr));
+    renderMonitorValues();
+    if(t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 
 // ============================================================
