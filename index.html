@@ -1122,6 +1122,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <span class="ri">👨‍⚕️</span><span class="rl">医師（即時FB）</span>
       </div>
     </div>
+    <!-- 天の声 手動ON/OFF -->
+    <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button id="tenManualBtn" type="button" onclick="toggleTenManual()"
+        style="padding:10px 16px;border-radius:8px;border:1px solid #555;background:rgba(120,120,120,0.18);color:#aaa;font-weight:700;cursor:pointer;font-size:13px;">
+        🔇 天の声 OFF
+      </button>
+      <span id="tenManualHint" style="font-size:11px;color:#888;">音声認識が反応しない時、ボタンで天の声をONにすると現在の役割で会話できます</span>
+    </div>
   </div>
 
   <!-- Always-on wake word bar -->
@@ -2500,6 +2508,8 @@ function startCallRecord(){
   if(!callState.recog){ toast('音声認識初期化失敗'); return; }
   callState.recording = true;
   setCallButtonsState(true);
+  // 通話開始 → 天の声 自動ON（病院役）
+  try{ if(typeof tenManualOn === 'function') tenManualOn('hospital'); }catch(_){}
   try{ callState.recog.start(); }
   catch(e){ toast('録音開始に失敗: '+e.message); callState.recording=false; setCallButtonsState(false); }
 }
@@ -2539,6 +2549,8 @@ async function stopCallAndAsk(){
     try{ callState.recog && callState.recog.abort(); }catch(_){}
   }
   setCallButtonsState(false);
+  // 通話停止 → 天の声 自動OFF
+  try{ if(typeof tenManualOff === 'function') tenManualOff(); }catch(_){}
   document.getElementById('callStateLine').textContent = '🔄 医師に確認中...';
   const transcript = (callState.transcript||'').trim();
   if(!transcript){
@@ -3492,6 +3504,7 @@ function aonLoop(){
       if(/(天の声|てんのこえ|テンノコエ).{0,4}終了|会話\s*停止/.test(trimmed)){
         aonGate = false;
         aonGateRole = null;
+        if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(false);
         addSys('🔚 天の声 OFF（待機モードへ戻りました）');
         setAonState('listening');
         setAonText('待機中... 「天の声、〇〇」と話してください');
@@ -3513,6 +3526,7 @@ function aonLoop(){
         if(newRole){
           aonGate = true;
           aonGateRole = newRole;
+          if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(true);
           if(newRole !== currentRole){ selRole(newRole); }
           addSys('🎯 天の声 ON：' + roleLabels[newRole]);
 
@@ -3593,6 +3607,7 @@ function stopAlwaysOn(){
   setAonState('off');
   setAonText('「天の声、家族／本人／バイタル／病院」で開始、「天の声終了」または「会話停止」で終了');
   setAonToggle(false);
+  if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(false);
 }
 
 function setAonState(state){
@@ -3652,6 +3667,57 @@ function stopRec(){
   const b=document.getElementById('micBtn');
   b.classList.remove('rec');b.textContent='🎤';
   document.getElementById('micSt').textContent='手動マイク入力';
+}
+
+// ============================================================
+// 天の声 手動ON/OFF（音声認識フォールバック）
+// ============================================================
+function setTenManualBtnUI(on){
+  const b = document.getElementById('tenManualBtn');
+  if(!b) return;
+  if(on){
+    b.textContent = '🟢 天の声 ON';
+    b.style.background = 'rgba(0,255,136,0.18)';
+    b.style.borderColor = '#00ff88';
+    b.style.color = '#00ff88';
+  } else {
+    b.textContent = '🔇 天の声 OFF';
+    b.style.background = 'rgba(120,120,120,0.18)';
+    b.style.borderColor = '#555';
+    b.style.color = '#aaa';
+  }
+}
+// 天の声を手動でON（指定 role でゲートを開く）
+function tenManualOn(role){
+  const r = role || currentRole || 'patient';
+  // 待受がOFFなら起動
+  if(!alwaysOn && typeof toggleAlwaysOn === 'function'){
+    try{ toggleAlwaysOn(); }catch(_){}
+  }
+  aonGate = true;
+  aonGateRole = r;
+  if(r !== currentRole && typeof selRole === 'function'){ selRole(r); }
+  // 切替直後の誤反応抑制
+  aonGateQuietUntil = Date.now() + 2500;
+  setTenManualBtnUI(true);
+  if(typeof setAonState === 'function') setAonState('wake-detected');
+  if(typeof setAonText === 'function') setAonText('🟢 ' + ((typeof roleLabels !== 'undefined' && roleLabels[r]) || r) + ' モード（手動ON）— ご質問をどうぞ');
+  if(typeof addSys === 'function') addSys('🎯 天の声 ON（手動）：' + ((typeof roleLabels !== 'undefined' && roleLabels[r]) || r));
+  if(typeof toast === 'function') toast('🟢 天の声 ON');
+}
+// 天の声を手動でOFF（ゲートを閉じる。待受自体はそのまま）
+function tenManualOff(){
+  aonGate = false;
+  aonGateRole = null;
+  setTenManualBtnUI(false);
+  if(typeof setAonState === 'function' && alwaysOn) setAonState('listening');
+  if(typeof setAonText === 'function') setAonText('待機中... 「天の声、〇〇」と話してください');
+  if(typeof addSys === 'function') addSys('🔇 天の声 OFF（手動）');
+  if(typeof toast === 'function') toast('🔇 天の声 OFF');
+}
+// トグル
+function toggleTenManual(){
+  if(aonGate){ tenManualOff(); } else { tenManualOn(currentRole); }
 }
 
 // ============================================================
