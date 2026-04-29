@@ -3801,6 +3801,7 @@ function aonLoop(){
         aonGate = false;
         aonGateRole = null;
         if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(false);
+        try{ playTenChime(false); }catch(_){}
         addSys('🔚 天の声 OFF（待機モードへ戻りました）');
         setAonState('listening');
         setAonText('待機中... 「天の声、〇〇」と話してください');
@@ -3823,6 +3824,7 @@ function aonLoop(){
           aonGate = true;
           aonGateRole = newRole;
           if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(true);
+          try{ playTenChime(true); }catch(_){}
           if(newRole !== currentRole){ selRole(newRole); }
           addSys('🎯 天の声 ON：' + roleLabels[newRole]);
 
@@ -3895,6 +3897,7 @@ function restartAon(){
 }
 
 function stopAlwaysOn(){
+  const wasGated = aonGate;
   alwaysOn = false;
   aonGate = false;
   aonGateRole = null;
@@ -3904,6 +3907,7 @@ function stopAlwaysOn(){
   setAonText('「天の声、家族／本人／バイタル／病院」で開始、「天の声終了」または「会話停止」で終了');
   setAonToggle(false);
   if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(false);
+  if(wasGated){ try{ playTenChime(false); }catch(_){} }
 }
 
 function setAonState(state){
@@ -3966,6 +3970,44 @@ function stopRec(){
 }
 
 // ============================================================
+// 天の声 通知音（ON：上昇2音 / OFF：下降2音）
+// ============================================================
+let _tenChimeCtx = null;
+function _ensureTenChimeCtx(){
+  if(!_tenChimeCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return false;
+    try{ _tenChimeCtx = new AC(); }catch(_){ return false; }
+  }
+  if(_tenChimeCtx.state === 'suspended'){
+    try{ _tenChimeCtx.resume(); }catch(_){}
+  }
+  return true;
+}
+function playTenChime(on){
+  if(!_ensureTenChimeCtx()) return;
+  const ctx = _tenChimeCtx;
+  const now = ctx.currentTime;
+  // ON: 600 → 880 Hz（上昇）, OFF: 880 → 500 Hz（下降）
+  const seq = on ? [{f:600, t:0.00, d:0.10},
+                    {f:880, t:0.10, d:0.18}]
+                 : [{f:880, t:0.00, d:0.10},
+                    {f:500, t:0.10, d:0.20}];
+  seq.forEach(tone=>{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = tone.f;
+    gain.gain.setValueAtTime(0, now + tone.t);
+    gain.gain.linearRampToValueAtTime(0.20, now + tone.t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0008, now + tone.t + tone.d);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now + tone.t);
+    osc.stop(now + tone.t + tone.d + 0.02);
+  });
+}
+
+// ============================================================
 // 天の声 手動ON/OFF（音声認識フォールバック）
 // ============================================================
 function setTenManualBtnUI(on){
@@ -4000,6 +4042,7 @@ function tenManualOn(role){
   if(typeof setAonText === 'function') setAonText('🟢 ' + ((typeof roleLabels !== 'undefined' && roleLabels[r]) || r) + ' モード（手動ON）— ご質問をどうぞ');
   if(typeof addSys === 'function') addSys('🎯 天の声 ON（手動）：' + ((typeof roleLabels !== 'undefined' && roleLabels[r]) || r));
   if(typeof toast === 'function') toast('🟢 天の声 ON');
+  try{ playTenChime(true); }catch(_){}
 }
 // 天の声を手動でOFF（ゲートを閉じる。待受自体はそのまま）
 function tenManualOff(){
@@ -4010,6 +4053,7 @@ function tenManualOff(){
   if(typeof setAonText === 'function') setAonText('待機中... 「天の声、〇〇」と話してください');
   if(typeof addSys === 'function') addSys('🔇 天の声 OFF（手動）');
   if(typeof toast === 'function') toast('🔇 天の声 OFF');
+  try{ playTenChime(false); }catch(_){}
 }
 // トグル
 function toggleTenManual(){
