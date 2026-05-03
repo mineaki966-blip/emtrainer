@@ -2592,7 +2592,8 @@ let callState = {
   recog: null,
   transcript: '',       // 表示用累積
   priorSessions: '',    // 過去インスタンス分の確定累積（再構築の起点）
-  deptId: 'er'
+  deptId: 'er',
+  prevAlwaysOn: false   // 通話前の alwaysOn 状態（通話終了後に復元）
 };
 
 function openHospitalCall(){
@@ -2607,8 +2608,15 @@ function openHospitalCall(){
   document.getElementById('callStateLine').textContent = '📵 待機中（科目を選び、通話開始）';
   setCallButtonsState(false);
   renderDeptList();
-  // 通話中は天の声待受を一時停止
-  if(typeof aonRecog!=='undefined' && aonRecog){ try{aonRecog.abort();}catch(_){} }
+  // 通話中は常時待受を完全停止（onend の自動再起動も止める）
+  // — abort() のみだと alwaysOn=true のまま onend → aonLoop で再起動して
+  //   通話用 SR とマイクを奪い合うため、stopAlwaysOn() で alwaysOn=false にする
+  callState.prevAlwaysOn = !!alwaysOn;
+  if(alwaysOn && typeof stopAlwaysOn === 'function'){
+    try{ stopAlwaysOn(); }catch(_){}
+  } else if(typeof aonRecog!=='undefined' && aonRecog){
+    try{ aonRecog.abort(); }catch(_){}
+  }
 }
 
 function closeHospitalCall(){
@@ -2616,6 +2624,11 @@ function closeHospitalCall(){
   callState.active = false;
   callState.recording = false;
   document.getElementById('hospCallOverlay').style.display='none';
+  // 通話前に常時待受がONだったら復元
+  if(callState.prevAlwaysOn && !alwaysOn && typeof startAlwaysOn === 'function'){
+    callState.prevAlwaysOn = false;
+    try{ startAlwaysOn(); }catch(_){}
+  }
 }
 
 function renderDeptList(){
@@ -2708,6 +2721,15 @@ function startCallRecord(){
   if(!(window.SpeechRecognition || window.webkitSpeechRecognition)){
     toast('このブラウザは音声認識に対応していません'); return;
   }
+  // ★ 念のため：常時待受がまだ動いていれば完全停止（マイク競合の最終防御）
+  if(alwaysOn && typeof stopAlwaysOn === 'function'){
+    callState.prevAlwaysOn = true;
+    try{ stopAlwaysOn(); }catch(_){}
+  }
+  // 手動マイクが録音中なら停止
+  if(typeof isRec !== 'undefined' && isRec && typeof stopRec === 'function'){
+    try{ stopRec(); }catch(_){}
+  }
   callState.transcript = '';
   callState.priorSessions = '';
   document.getElementById('callTranscript').textContent = '';
@@ -2718,10 +2740,13 @@ function startCallRecord(){
   if(!callState.recog){ toast('音声認識初期化失敗'); return; }
   callState.recording = true;
   setCallButtonsState(true);
-  // 通話開始 → 天の声 自動ON（病院役）
+  // 通話開始 → 天の声 自動ON（病院役）— 通話中は SR 起動はガードで抑止される
   try{ if(typeof tenManualOn === 'function') tenManualOn('hospital'); }catch(_){}
-  try{ callState.recog.start(); }
-  catch(e){ toast('録音開始に失敗: '+e.message); callState.recording=false; setCallButtonsState(false); }
+  // SR は他リスナの停止が伝播するまで少し待ってから start
+  setTimeout(()=>{
+    try{ callState.recog && callState.recog.start(); }
+    catch(e){ toast('録音開始に失敗: '+e.message); callState.recording=false; setCallButtonsState(false); }
+  }, 250);
 }
 
 
@@ -2761,6 +2786,11 @@ async function stopCallAndAsk(){
   setCallButtonsState(false);
   // 通話停止 → 天の声 自動OFF
   try{ if(typeof tenManualOff === 'function') tenManualOff(); }catch(_){}
+  // 通話前に常時待受がONだったら復元（通話用SRが解放された後）
+  if(callState.prevAlwaysOn && !alwaysOn && typeof startAlwaysOn === 'function'){
+    callState.prevAlwaysOn = false;
+    setTimeout(()=>{ try{ startAlwaysOn(); }catch(_){} }, 400);
+  }
   document.getElementById('callStateLine').textContent = '🔄 医師に確認中...';
   const transcript = (callState.transcript||'').trim();
   if(!transcript){
