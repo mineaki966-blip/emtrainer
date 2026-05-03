@@ -3218,9 +3218,10 @@ function isQuotaError(msg){
       || s.includes('insufficient_quota') || s.includes('too many requests');
 }
 
-async function callGemini(systemPrompt, messages, keyOverride){
+async function callGemini(systemPrompt, messages, keyOverride, maxTokens){
   const key = keyOverride || apiKey;
   if(!key) throw new Error('Gemini APIキーが未設定');
+  const _mt = (typeof maxTokens === 'number' && maxTokens > 0) ? maxTokens : 600;
   const contents = [];
   for(const m of messages){
     contents.push({
@@ -3234,7 +3235,7 @@ async function callGemini(systemPrompt, messages, keyOverride){
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: contents,
-      generationConfig: { maxOutputTokens: 600, temperature: 0.7 }
+      generationConfig: { maxOutputTokens: _mt, temperature: 0.7 }
     };
     try{
       const res = await fetch(url, {
@@ -3266,9 +3267,10 @@ async function callGemini(systemPrompt, messages, keyOverride){
   throw err;
 }
 
-async function callAnthropic(systemPrompt, messages, keyOverride){
+async function callAnthropic(systemPrompt, messages, keyOverride, maxTokens){
   const key = keyOverride || apiKey;
   if(!key) throw new Error('Anthropic APIキーが未設定');
+  const _mt = (typeof maxTokens === 'number' && maxTokens > 0) ? maxTokens : 600;
   const res = await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{
@@ -3279,7 +3281,7 @@ async function callAnthropic(systemPrompt, messages, keyOverride){
     },
     body: JSON.stringify({
       model:'claude-3-5-haiku-20241022',
-      max_tokens: 600,
+      max_tokens: _mt,
       system: systemPrompt,
       messages: messages
     })
@@ -3301,9 +3303,10 @@ function toOpenAIMessages(systemPrompt, messages){
   return arr;
 }
 
-async function callOpenAI(systemPrompt, messages, keyOverride){
+async function callOpenAI(systemPrompt, messages, keyOverride, maxTokens){
   const key = keyOverride || apiKey;
   if(!key) throw new Error('OpenAI APIキーが未設定');
+  const _mt = (typeof maxTokens === 'number' && maxTokens > 0) ? maxTokens : 600;
   const models = ['gpt-4o-mini', 'gpt-4.1-mini'];
   let lastErr = null;
   for(const model of models){
@@ -3314,7 +3317,7 @@ async function callOpenAI(systemPrompt, messages, keyOverride){
         body: JSON.stringify({
           model: model,
           messages: toOpenAIMessages(systemPrompt, messages),
-          max_tokens: 600,
+          max_tokens: _mt,
           temperature: 0.7
         })
       });
@@ -3336,9 +3339,10 @@ async function callOpenAI(systemPrompt, messages, keyOverride){
   throw err;
 }
 
-async function callGroq(systemPrompt, messages, keyOverride){
+async function callGroq(systemPrompt, messages, keyOverride, maxTokens){
   const key = keyOverride || apiKey;
   if(!key) throw new Error('Groq APIキーが未設定');
+  const _mt = (typeof maxTokens === 'number' && maxTokens > 0) ? maxTokens : 600;
   const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
   let lastErr = null;
   for(const model of models){
@@ -3349,7 +3353,7 @@ async function callGroq(systemPrompt, messages, keyOverride){
         body: JSON.stringify({
           model: model,
           messages: toOpenAIMessages(systemPrompt, messages),
-          max_tokens: 600,
+          max_tokens: _mt,
           temperature: 0.7
         })
       });
@@ -3371,18 +3375,18 @@ async function callGroq(systemPrompt, messages, keyOverride){
   throw err;
 }
 
-function callByProvider(prov, systemPrompt, messages, keyOverride){
-  if(prov === 'gemini')    return callGemini(systemPrompt, messages, keyOverride);
-  if(prov === 'groq')      return callGroq(systemPrompt, messages, keyOverride);
-  if(prov === 'openai')    return callOpenAI(systemPrompt, messages, keyOverride);
-  if(prov === 'anthropic') return callAnthropic(systemPrompt, messages, keyOverride);
+function callByProvider(prov, systemPrompt, messages, keyOverride, maxTokens){
+  if(prov === 'gemini')    return callGemini(systemPrompt, messages, keyOverride, maxTokens);
+  if(prov === 'groq')      return callGroq(systemPrompt, messages, keyOverride, maxTokens);
+  if(prov === 'openai')    return callOpenAI(systemPrompt, messages, keyOverride, maxTokens);
+  if(prov === 'anthropic') return callAnthropic(systemPrompt, messages, keyOverride, maxTokens);
   throw new Error('未対応プロバイダ: '+prov);
 }
 
-async function callAI(systemPrompt, messages){
+async function callAI(systemPrompt, messages, maxTokens){
   const prov = getProvider();
   try{
-    return await callByProvider(prov, systemPrompt, messages);
+    return await callByProvider(prov, systemPrompt, messages, undefined, maxTokens);
   }catch(e){
     const autoCk = document.getElementById('autoFallback');
     const auto = autoCk ? autoCk.checked : true;
@@ -3391,7 +3395,7 @@ async function callAI(systemPrompt, messages){
       if(alt){
         addSys('⚠️ ' + PROVIDER_META[prov].name + 'が応答不可（' + e.message + '）→ ' + PROVIDER_META[alt.prov].name + ' に自動切替');
         try{
-          const reply = await callByProvider(alt.prov, systemPrompt, messages, alt.key);
+          const reply = await callByProvider(alt.prov, systemPrompt, messages, alt.key, maxTokens);
           document.getElementById('aiProvider').value = alt.prov;
           apiKey = alt.key;
           document.getElementById('apiIn').value = alt.key;
@@ -3622,7 +3626,7 @@ ${(scenario && scenario.trainingPoints && scenario.trainingPoints.length) ? ('\n
 ・冗長な前置きは避け、各項目を簡潔に箇条書きで2〜4点ずつ。`;
 
   try{
-    const reply = await callAI(sys, [{role:'user',content:'活動ログ：\n'+logText+'\n\n上記の訓練についてフィードバックをお願いします。'}]);
+    const reply = await callAI(sys, [{role:'user',content:'活動ログ：\n'+logText+'\n\n上記の訓練についてフィードバックをお願いします。'}], 4096);
     box.textContent = reply;
     speak(reply.substring(0,400));
   }catch(e){box.textContent='エラー: '+e.message;}
@@ -4028,8 +4032,10 @@ function setTenManualBtnUI(on){
 // 天の声を手動でON（指定 role でゲートを開く）
 function tenManualOn(role){
   const r = role || currentRole || 'patient';
-  // 待受がOFFなら起動
-  if(!alwaysOn && typeof toggleAlwaysOn === 'function'){
+  // 通話録音中は常時待受 SR を起動しない（通話用 SR とマイクを奪い合うため）
+  const _inCall = (typeof callState !== 'undefined' && callState && callState.recording);
+  // 待受がOFF かつ 通話中でない場合のみ起動
+  if(!alwaysOn && !_inCall && typeof toggleAlwaysOn === 'function'){
     try{ toggleAlwaysOn(); }catch(_){}
   }
   aonGate = true;
