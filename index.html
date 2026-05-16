@@ -2010,14 +2010,9 @@ function showMonitor(){
   }
   renderMonitorValues();
   startEcgAnimation();
-  // モニター音（HR同期ビープ／SpO2連動音程／CPAアラーム）
-  try{ startMonitorBeep(); }catch(_){}
-  // モニターを閉じるとき停止
-  const closeBtn = ov.querySelector('button[onclick*="monitorOverlay"]');
-  if(closeBtn && !closeBtn.dataset.beepHooked){
-    closeBtn.dataset.beepHooked = '1';
-    closeBtn.addEventListener('click', ()=>{ try{ stopMonitorBeep(); }catch(_){} });
-  }
+  // ※ モニター画面ではリズム音・CPAサイレンは鳴らさない（ユーザー要望）
+  // 既存音が動いていれば停止しておく
+  try{ stopMonitorBeep && stopMonitorBeep(); }catch(_){}
 }
 
 // === リズム判定（ECGテキスト + HRから種別を決定） ===
@@ -2045,10 +2040,10 @@ function parseVitalsFromScenario(){
   if(!scenario) return;
   const src = (currentPhase===3 ? scenario.v3 : currentPhase===2 ? scenario.v2 : scenario.v1) || scenario.v1 || '';
   // 正規表現で数値を抽出
-  const hr   = src.match(/HR\s*(\d+)/i)   || src.match(/脈拍\s*(\d+)/);
+  const hr   = src.match(/(?:HR|脈拍)\s*[:：]?\s*(\d+)/i);
   const spo2 = src.match(/SpO2\s*(\d+)/i) || src.match(/酸素\s*(\d+)/);
   const bp   = src.match(/BP\s*(\d+\/\d+)/i) || src.match(/血圧\s*(\d+\/\d+)/);
-  const rr   = src.match(/RR\s*(\d+)/i)   || src.match(/呼吸\s*(\d+)/);
+  const rr   = src.match(/(?:RR|呼吸数?)\s*[:：]?\s*(\d+)/i);
   const gcs  = src.match(/GCS\s*[E\d]*([\d]+)/i);
   if(hr)   monitorData.hr   = hr[1];
   if(spo2) monitorData.spo2 = spo2[1];
@@ -3209,6 +3204,42 @@ function applyProcedureHookToMonitor(procText){
   }
   const label = bestKey || (procText||'').slice(0, 16);
   if(typeof toast === 'function') toast('🔄 処置反映: ' + label + ' → モニター更新');
+  // AED式解析：除細動押下時に2分後の自動解析を予約
+  if(bestKey === '除細動' || /除細動|AED/.test(procText||'')){
+    scheduleAedAnalysis();
+  }
+}
+
+// === AED式 心電図解析（除細動後2分） ===
+let _aedAnalysisTimer = null;
+function scheduleAedAnalysis(){
+  // 既に予約されていればキャンセル（連続押下の二重予約防止）
+  if(_aedAnalysisTimer){ clearTimeout(_aedAnalysisTimer); _aedAnalysisTimer = null; }
+  if(typeof toast === 'function') toast('⏱ 2分後にAED心電図解析を実施します');
+  if(typeof addSys === 'function') addSys('⏱ 除細動後2分タイマー開始。2分後に自動解析を行います');
+  _aedAnalysisTimer = setTimeout(()=>{
+    _aedAnalysisTimer = null;
+    runAedAnalysis();
+  }, 120000); // 2分 = 120秒
+}
+
+function runAedAnalysis(){
+  // 「心電図を解析します」
+  try{ speak('心電図を解析します。患者から離れてください。', 'response'); }catch(_){}
+  if(typeof addSys === 'function') addSys('🩺 AED：心電図を解析します（5秒）');
+  // 5秒後に判定
+  setTimeout(()=>{
+    const r = monitorData && monitorData.rhythm;
+    const shockable = (r === 'vf' || r === 'vt');
+    const msg = shockable
+      ? 'ショックが必要です。除細動を実施してください。'
+      : 'ショックは必要ありません。胸骨圧迫を継続してください。';
+    try{ speak(msg, 'response'); }catch(_){}
+    if(typeof addSys === 'function') addSys(shockable
+      ? '⚡ AED判定：ショック適応（VF/VT）— 除細動推奨'
+      : '🚫 AED判定：ショック非適応（' + (r||'リズム不明') + '）— CPR継続');
+    if(typeof toast === 'function') toast(shockable ? '⚡ ショック適応' : '🚫 ショック非適応');
+  }, 5000);
 }
 
 // 既存トゥイーンが残っていればキャンセルできるよう ID 管理
