@@ -4372,4 +4372,9 @@ function toast(msg){
 }
 
 // プロトコル状態表示の更新（ロード時とパネル切替時）
-window.addEventListener
+window.addEventListener('load', ()=>{
+  try{ refreshProtocolStatus(); }catch(_){}
+});
+</script>
+</body>
+</html>
