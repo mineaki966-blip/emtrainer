@@ -275,6 +275,9 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
 .input-row input{flex:1;margin:0;}
 
 /* Speaking */
+.mon-pbtn{transition:transform 0.08s, background 0.15s;}
+.mon-pbtn:hover{filter:brightness(1.15);}
+.mon-pbtn:active{transform:scale(0.96);}
 .speak-bar{
   display:none;align-items:center;gap:8px;
   font-size:12px;color:var(--green);
@@ -1010,15 +1013,42 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <!-- Hidden rhythm holders（互換：表示はしない） -->
       <span style="display:none;" id="mv_ecg">--</span>
       <span style="display:none;" id="mv_gcs">--</span>
-      <!-- Update button -->
-      <div style="padding:10px 14px;background:#0a1f15;border-top:1px solid #0f3020;">
-        <button class="btn btn-block" onclick="updateMonitorVitals()"
-          style="background:rgba(0,255,136,0.12);border:1px solid var(--green);color:var(--green);font-size:12px;padding:8px;">
-          🔄 最新値に更新（AIに問い合わせ）
+      <!-- 処置欄（モニター直結。押下で applyProcedureHookToMonitor が走り、バイタルが滑らかにトゥイーン） -->
+      <div style="padding:10px 12px;background:#0a1f15;border-top:1px solid #0f3020;">
+        <div style="font-size:11px;color:#5a9a7a;letter-spacing:0.08em;margin-bottom:6px;">⚕ モニター連動 処置</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button class="mon-pbtn" onclick="doProc('酸素投与（経鼻カニューレ・中濃度 鼻3L/分）')"
+            style="padding:14px 10px;border-radius:8px;border:1px solid #4a9aff;background:rgba(74,154,255,0.13);color:#9ac8ff;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            🫁 O2 中濃度<br><span style="font-size:10px;color:#7a9aca;">経鼻3L/分</span>
+          </button>
+          <button class="mon-pbtn" onclick="doProc('酸素投与（リザーバマスク・高濃度 10L/分）')"
+            style="padding:14px 10px;border-radius:8px;border:1px solid #4ad0ff;background:rgba(74,208,255,0.16);color:#9ae0ff;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            🫁 O2 高濃度<br><span style="font-size:10px;color:#7ac0e0;">リザーバ10L/分</span>
+          </button>
+          <button class="mon-pbtn" onclick="doProc('補助換気（BVM）開始')"
+            style="padding:14px 10px;border-radius:8px;border:1px solid #66e0a0;background:rgba(102,224,160,0.16);color:#a0f0c8;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            💨 補助換気<br><span style="font-size:10px;color:#80c8a0;">BVM</span>
+          </button>
+          <button class="mon-pbtn" onclick="doProc('胸骨圧迫開始（CPR）')"
+            style="padding:14px 10px;border-radius:8px;border:1px solid #ffaa55;background:rgba(255,170,85,0.16);color:#ffd0a0;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            🫀 CPR<br><span style="font-size:10px;color:#d0a070;">胸骨圧迫</span>
+          </button>
+          <button class="mon-pbtn" onclick="doProc('AED/除細動を実施')"
+            style="padding:14px 10px;border-radius:8px;border:1px solid #ff4d6e;background:rgba(255,77,110,0.16);color:#ffaab8;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            ⚡ 除細動<br><span style="font-size:10px;color:#d08090;">AED/手動</span>
+          </button>
+          <button class="mon-pbtn" onclick="doProc('アドレナリン1mg静注（CPA症例）')"
+            style="padding:14px 10px;border-radius:8px;border:1px solid #ff5050;background:rgba(255,80,80,0.18);color:#ffb0b0;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            💉 アドレナリン<br><span style="font-size:10px;color:#d08585;">1mg 静注</span>
+          </button>
+        </div>
+        <button id="alarmSilenceBtn" class="btn btn-block" onclick="silenceCpaAlarm()"
+          style="background:rgba(255,77,110,0.14);border:1px solid #ff4d6e;color:#ffaab8;font-size:12px;padding:8px;margin-top:8px;font-weight:700;">
+          🔕 アラームサイレンス
         </button>
-        <button class="btn btn-block" onclick="show12Lead()"
-          style="background:rgba(255,200,50,0.12);border:1px solid #ffc832;color:#ffc832;font-size:12px;padding:8px;margin-top:6px;">
-          🫀 12誘導ECGを確認
+        <button class="btn btn-block" onclick="updateMonitorVitals()"
+          style="background:rgba(0,255,136,0.10);border:1px solid var(--green);color:var(--green);font-size:11px;padding:6px;margin-top:6px;">
+          🔄 最新値に更新（AIに問い合わせ）
         </button>
       </div>
     </div>
@@ -1971,7 +2001,13 @@ function showMonitor(){
   updateClock();
   setInterval(updateClock, 1000);
   // バイタルをシナリオから自動パース試行
-  parseVitalsFromScenario();
+  if(scenario){
+    parseVitalsFromScenario();
+  } else {
+    // シナリオ未設定: 初期状態（rhythm=sinus）を明示
+    monitorData.rhythm = 'sinus';
+    monitorData.ecg = '--';
+  }
   renderMonitorValues();
   startEcgAnimation();
   // モニター音（HR同期ビープ／SpO2連動音程／CPAアラーム）
@@ -1989,9 +2025,13 @@ function _detectRhythm(ecgText, hrNum){
   const t = (ecgText||'').toString();
   // 強いキーワード優先（複合があってもCPA系を優先）
   if(/心静止|asystole|電気活動なし(?!.*PEA)/i.test(t)) return 'asystole';
-  if(/(?<!無)\bVF\b|心室細動|細動波|Vf(?![a-z])|fibrillation/i.test(t)) return 'vf';
+  // VF判定: "aVF誘導" などの誘導名を拾わないよう、前後の ASCII 英字を厳密に除外
+  //   良い例: "Vf", " VF ", "Vf移行", "Vfに対し", "Vfから"
+  //   悪い例: "aVF", "aVF誘導"（lead名）
+  if(/(?<![a-zA-Z無])(?:VF|Vf|vf|vF)(?![a-zA-Z])|心室細動|細動波|fibrillation/i.test(t)) return 'vf';
   if(/PEA|無脈性電気活動/i.test(t)) return 'pea';
-  if(/\bVT\b|心室頻拍|wide.*tachy/i.test(t)) return 'vt';
+  // VT判定も同様に厳密化
+  if(/(?<![a-zA-Z])(?:VT|Vt|vt|vT)(?![a-zA-Z])|心室頻拍|wide.*tachy/i.test(t)) return 'vt';
   if(hrNum === 0) return 'asystole';
   if(/心房細動|AF|atrial fib/i.test(t)) return 'afib';
   if(!isNaN(hrNum)){
@@ -2092,6 +2132,9 @@ function startEcgAnimation(){
   if(!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
+  // ★ 起動時に Canvas を完全クリア（前回の VF 等の描画が残らないように）
+  ctx.fillStyle = '#020b06';
+  ctx.fillRect(0, 0, W, H);
   ecgX = 0;
   let prevY = H/2;
   // 内部状態（毎フレーム monitorData から動的に取得）
@@ -2279,7 +2322,9 @@ function drawLeadWaveform(spec){
 let monitorBeep = {
   ctx: null,
   timer: null,
-  alarmOsc: null,
+  alarmOsc: null,           // 旧式（互換のため残置）
+  alarmCycleTimer: null,    // 間欠アラームのループタイマ
+  alarmSilenced: false,     // 手動サイレンス状態
   playing: false,
   cpaAlarm: false
 };
@@ -2325,33 +2370,73 @@ function _playMonBeep(){
   osc.stop(now + 0.12);
 }
 
+// === 間欠アラーム（1.2秒鳴って1.2秒休止 を繰り返す）===
+function _scheduleCpaAlarmPulse(){
+  if(!monitorBeep.ctx || !monitorBeep.cpaAlarm) return;
+  if(monitorBeep.alarmSilenced) return;
+  const ctx = monitorBeep.ctx;
+  const now = ctx.currentTime;
+  const beepLen = 0.18;    // 1パルスの長さ
+  const beepGap = 0.10;    // パルス間
+  const beats = 3;         // 3パルスを1サイクル
+  const restAfter = 1.0;   // サイクル後の静音
+  // 3パルス（高音→中音→高音）でアラーム感を演出
+  const freqs = [800, 650, 800];
+  for(let i=0;i<beats;i++){
+    const start = now + i*(beepLen+beepGap);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freqs[i];
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(0.16, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0008, start + beepLen);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + beepLen + 0.02);
+  }
+  // 次のサイクルを予約
+  const cycleMs = (beats*(beepLen+beepGap) + restAfter) * 1000;
+  monitorBeep.alarmCycleTimer = setTimeout(_scheduleCpaAlarmPulse, cycleMs);
+}
+
 function _startCpaAlarm(){
   if(!monitorBeep.ctx) return;
-  if(monitorBeep.alarmOsc) return;
-  const ctx = monitorBeep.ctx;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'sawtooth';
-  // 連続的に少し変動するアラーム音
-  osc.frequency.setValueAtTime(700, ctx.currentTime);
-  gain.gain.value = 0.08;
-  // ピロピロパターン（800Hz↔550Hz を往復）
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  lfo.frequency.value = 6;
-  lfoGain.gain.value = 120;
-  lfo.connect(lfoGain).connect(osc.frequency);
-  osc.connect(gain).connect(ctx.destination);
-  lfo.start();
-  osc.start();
-  monitorBeep.alarmOsc = { osc, gain, lfo };
+  if(monitorBeep.alarmCycleTimer) return; // 既に動作中
+  monitorBeep.alarmSilenced = false;
+  _scheduleCpaAlarmPulse();
 }
 
 function _stopCpaAlarm(){
-  if(!monitorBeep.alarmOsc) return;
-  try{ monitorBeep.alarmOsc.osc.stop(); }catch(_){}
-  try{ monitorBeep.alarmOsc.lfo.stop(); }catch(_){}
-  monitorBeep.alarmOsc = null;
+  if(monitorBeep.alarmCycleTimer){
+    clearTimeout(monitorBeep.alarmCycleTimer);
+    monitorBeep.alarmCycleTimer = null;
+  }
+}
+
+// === 手動サイレンス（モニター画面の🔕ボタンから呼ばれる） ===
+function silenceCpaAlarm(){
+  monitorBeep.alarmSilenced = true;
+  _stopCpaAlarm();
+  const btn = document.getElementById('alarmSilenceBtn');
+  if(btn){
+    btn.style.opacity = '0.45';
+    btn.textContent = '🔕 サイレンス中';
+    btn.disabled = true;
+  }
+  if(typeof toast === 'function') toast('🔕 アラームをサイレンスしました');
+}
+// 内部: リズムが正常に戻ったらサイレンス解除（次の CPA で鳴るように）
+function _resetAlarmSilenceIfNormal(){
+  if(monitorBeep.alarmSilenced && !monitorBeep.cpaAlarm){
+    monitorBeep.alarmSilenced = false;
+    const btn = document.getElementById('alarmSilenceBtn');
+    if(btn){
+      btn.style.opacity = '1';
+      btn.textContent = '🔕 アラームサイレンス';
+      btn.disabled = false;
+    }
+  }
 }
 
 function _scheduleNextMonBeep(){
@@ -2359,18 +2444,19 @@ function _scheduleNextMonBeep(){
   const r = monitorData.rhythm || 'sinus';
   const isCpa = (r==='vf' || r==='asystole' || r==='pea');
   if(isCpa){
-    // アラーム音継続、ビープは停止
+    // アラーム音継続（手動サイレンスされていれば鳴らさない）、ビープは停止
     if(!monitorBeep.cpaAlarm){
       monitorBeep.cpaAlarm = true;
-      _startCpaAlarm();
+      if(!monitorBeep.alarmSilenced) _startCpaAlarm();
     }
     monitorBeep.timer = setTimeout(_scheduleNextMonBeep, 500);
     return;
   }
-  // ビープモード
+  // ビープモード（リズム正常）
   if(monitorBeep.cpaAlarm){
     monitorBeep.cpaAlarm = false;
     _stopCpaAlarm();
+    _resetAlarmSilenceIfNormal();
   }
   let hr = parseInt(monitorData.hr);
   if(isNaN(hr) || hr <= 0){
@@ -3098,11 +3184,20 @@ function selRole(r){
   currentRole=r;
   _toggleProcPanel(r);
   // 病院役を選択 → 通話画面を自動オープン
+  // ただし、既に表示中／録音中／active の時は再オープンしない
+  // （recording / transcript / priorSessions 上書きによる競合を防ぐ）
   if(r==='hospital' && typeof openHospitalCall==='function' && document.getElementById('hospCallOverlay')){
-    setTimeout(openHospitalCall, 50);
+    const ov = document.getElementById('hospCallOverlay');
+    const isVisible = ov && ov.style.display && ov.style.display !== 'none';
+    const isRecording = (typeof callState !== 'undefined' && callState && callState.recording);
+    const isActive = (typeof callState !== 'undefined' && callState && callState.active);
+    if(!isVisible && !isRecording && !isActive){
+      setTimeout(openHospitalCall, 50);
+    }
   }
   document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('sel'));
-  document.querySelector(`.role-card[data-r="${r}"]`).classList.add('sel');
+  const tgt = document.querySelector(`.role-card[data-r="${r}"]`);
+  if(tgt) tgt.classList.add('sel');
 }
 
 // ============================================================
@@ -4062,15 +4157,16 @@ function setTenManualBtnUI(on){
 // 天の声を手動でON（指定 role でゲートを開く）
 function tenManualOn(role){
   const r = role || currentRole || 'patient';
-  // 通話録音中は常時待受 SR を起動しない（通話用 SR とマイクを奪い合うため）
-  const _inCall = (typeof callState !== 'undefined' && callState && callState.recording);
+  // 通話録音中／通話画面表示中は常時待受 SR を起動しない（通話用 SR との競合を防ぐ）
+  const _inCall = (typeof callState !== 'undefined' && callState && (callState.recording || callState.active));
   // 待受がOFF かつ 通話中でない場合のみ起動
   if(!alwaysOn && !_inCall && typeof toggleAlwaysOn === 'function'){
     try{ toggleAlwaysOn(); }catch(_){}
   }
   aonGate = true;
   aonGateRole = r;
-  if(r !== currentRole && typeof selRole === 'function'){ selRole(r); }
+  // 通話中の selRole 切替は openHospitalCall の再実行を引き起こすのでスキップ
+  if(!_inCall && r !== currentRole && typeof selRole === 'function'){ selRole(r); }
   // 切替直後の誤反応抑制
   aonGateQuietUntil = Date.now() + 2500;
   setTenManualBtnUI(true);
@@ -4104,6 +4200,24 @@ function toggleTenManual(){
 function cleanForTTS(text){
   if(!text) return '';
   let t = String(text);
+  // ===== 読み間違い対策（音声合成エンジンが地名読みしてしまうケース） =====
+  // 「三次病院」「三次救急」「三次搬送」「三次医療機関」などの "三次"（さんじ）が
+  // 地名「みよし」と読まれないよう、読み仮名を直接挿入
+  t = t.replace(/三次(?=病院|救急|搬送|医療|施設|当番|医)/g, 'サンジ');
+  t = t.replace(/(?<=直近)三次/g, 'サンジ');
+  t = t.replace(/(?<=、|・|（|\s|^)三次(?=[、・。\s）])/g, 'サンジ');
+  // 二次・一次も同様（誤読の予防）
+  t = t.replace(/二次(?=病院|救急|搬送|医療)/g, 'ニジ');
+  t = t.replace(/一次(?=病院|救急|搬送|医療)/g, 'イチジ');
+  // ===== 血圧スラッシュ読み対策 =====
+  // 「BP 130/98」「血圧 130/98」「血圧は130/98」「120/80でした」などの "/"
+  // が「分の」と読まれる問題への対策。
+  //   → 「、」に置換して「130、98」と読ませる（収縮期・拡張期の自然な区切り）
+  // 数字 / 数字 (2-3桁ずつ) を血圧として置換。4桁以上の年やSpO2比などは除外。
+  // 「100/分」「20/min」などの単位は除外（後続が「/分」「/min」「/L」など）
+  t = t.replace(/(?<![\d.])(\d{2,3})\s*\/\s*(\d{2,3})(?![\d.])(?!\s*(?:分|min|L|時|月|日|時間))/gi,
+                (_m, sys, dia) => sys + '、' + dia);
+  // ===== 既存のMarkdown除去 =====
   t = t.replace(/```[\s\S]*?```/g, '');           // コードブロック
   t = t.replace(/`([^`]+)`/g, '$1');                // インラインコード
   t = t.replace(/!\[[^\]]*\]\([^)]*\)/g, '');  // 画像
@@ -4258,7 +4372,4 @@ function toast(msg){
 }
 
 // プロトコル状態表示の更新（ロード時とパネル切替時）
-window.addEventListener('load', ()=>{ try{ refreshProtocolStatus(); }catch(_){} });
-</script>
-</body>
-</html>
+window.addEventListener
