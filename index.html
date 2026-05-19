@@ -854,7 +854,33 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="vf"><label>出血</label><select id="vf_bleed_1"><option value="">--</option><option>無</option><option>あり(活動性なし)</option><option>あり(活動性あり)</option></select></div>
       <div class="vf vf-wide"><label>その他所見（顔色・気道・外傷など 自由記述）</label><textarea id="vf_note_1" rows="2" placeholder="例:顔面蒼白、胸部打撲痕あり、気道開通"></textarea></div>
     </div>
-    <textarea id="s_v1" style="display:none;"></textarea>
+    <!-- CPA構造化入力（フェーズ1） -->
+    <div class="cpa-block" style="margin-top:10px;padding:8px 10px;background:rgba(255,77,110,0.06);border:1px dashed #ff4d6e;border-radius:8px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#ff8090;">
+        <input type="checkbox" id="vf_cpa_1" onchange="onCpaToggle(1)" style="transform:scale(1.3);accent-color:#ff4d6e;">
+        ☠ CPA（心肺停止）状態
+      </label>
+      <div id="cpaFields_1" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,77,110,0.3);">
+        <div class="vital-grid">
+          <div class="vf"><label>除細動で復帰する回数</label>
+            <input type="number" id="vf_defibCount_1" min="0" max="20" placeholder="例:3" style="border-color:#ff4d6e;"></div>
+          <div class="vf"><label>復帰後の波形</label>
+            <select id="vf_postDefibRhythm_1" style="border-color:#ff4d6e;">
+              <option value="">--</option>
+              <option value="洞調律">洞調律</option>
+              <option value="洞性頻脈">洞性頻脈</option>
+              <option value="洞性徐脈">洞性徐脈</option>
+              <option value="PEA">PEA</option>
+              <option value="心静止">心静止</option>
+              <option value="VF">Vf継続（復帰せず）</option>
+            </select>
+          </div>
+          <div class="vf"><label>復帰後のHR</label>
+            <input type="number" id="vf_postDefibHr_1" min="0" max="250" placeholder="例:80（既定80）" style="border-color:#ff4d6e;"></div>
+        </div>
+      </div>
+    </div>
+    <textarea id="s_v1" style="display:none;""></textarea>
 
     <hr>
     <div class="card-hd" style="margin-bottom:10px;"><em>🚑</em>フェーズ②：車内収容後の変化</div>
@@ -892,7 +918,33 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="vf"><label>出血</label><select id="vf_bleed_2"><option value="">--</option><option>無</option><option>あり(活動性なし)</option><option>あり(活動性あり)</option></select></div>
       <div class="vf vf-wide"><label>その他所見（顔色・気道・外傷など 自由記述）</label><textarea id="vf_note_2" rows="2" placeholder="例:顔面蒼白、胸部打撲痕あり、気道開通"></textarea></div>
     </div>
-    <textarea id="s_v2" style="display:none;"></textarea>
+    <!-- CPA構造化入力（フェーズ2） -->
+    <div class="cpa-block" style="margin-top:10px;padding:8px 10px;background:rgba(255,77,110,0.06);border:1px dashed #ff4d6e;border-radius:8px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#ff8090;">
+        <input type="checkbox" id="vf_cpa_2" onchange="onCpaToggle(2)" style="transform:scale(1.3);accent-color:#ff4d6e;">
+        ☠ CPA（心肺停止）状態
+      </label>
+      <div id="cpaFields_2" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,77,110,0.3);">
+        <div class="vital-grid">
+          <div class="vf"><label>除細動で復帰する回数</label>
+            <input type="number" id="vf_defibCount_2" min="0" max="20" placeholder="例:3" style="border-color:#ff4d6e;"></div>
+          <div class="vf"><label>復帰後の波形</label>
+            <select id="vf_postDefibRhythm_2" style="border-color:#ff4d6e;">
+              <option value="">--</option>
+              <option value="洞調律">洞調律</option>
+              <option value="洞性頻脈">洞性頻脈</option>
+              <option value="洞性徐脈">洞性徐脈</option>
+              <option value="PEA">PEA</option>
+              <option value="心静止">心静止</option>
+              <option value="VF">Vf継続（復帰せず）</option>
+            </select>
+          </div>
+          <div class="vf"><label>復帰後のHR</label>
+            <input type="number" id="vf_postDefibHr_2" min="0" max="250" placeholder="例:80（既定80）" style="border-color:#ff4d6e;"></div>
+        </div>
+      </div>
+    </div>
+    <textarea id="s_v2" style="display:none;""></textarea>
     <label>処置への反応</label>
     <textarea id="s_r2" placeholder="例：頸椎カラー装着に同意。輸液に対して血圧は改善傾向。疼痛は持続。"></textarea>
 
@@ -932,7 +984,33 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="vf"><label>出血</label><select id="vf_bleed_3"><option value="">--</option><option>無</option><option>あり(活動性なし)</option><option>あり(活動性あり)</option></select></div>
       <div class="vf vf-wide"><label>その他所見（顔色・気道・外傷など 自由記述）</label><textarea id="vf_note_3" rows="2" placeholder="例:顔面蒼白、胸部打撲痕あり、気道開通"></textarea></div>
     </div>
-    <textarea id="s_v3" style="display:none;"></textarea>
+    <!-- CPA構造化入力（フェーズ3） -->
+    <div class="cpa-block" style="margin-top:10px;padding:8px 10px;background:rgba(255,77,110,0.06);border:1px dashed #ff4d6e;border-radius:8px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#ff8090;">
+        <input type="checkbox" id="vf_cpa_3" onchange="onCpaToggle(3)" style="transform:scale(1.3);accent-color:#ff4d6e;">
+        ☠ CPA（心肺停止）状態
+      </label>
+      <div id="cpaFields_3" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,77,110,0.3);">
+        <div class="vital-grid">
+          <div class="vf"><label>除細動で復帰する回数</label>
+            <input type="number" id="vf_defibCount_3" min="0" max="20" placeholder="例:3" style="border-color:#ff4d6e;"></div>
+          <div class="vf"><label>復帰後の波形</label>
+            <select id="vf_postDefibRhythm_3" style="border-color:#ff4d6e;">
+              <option value="">--</option>
+              <option value="洞調律">洞調律</option>
+              <option value="洞性頻脈">洞性頻脈</option>
+              <option value="洞性徐脈">洞性徐脈</option>
+              <option value="PEA">PEA</option>
+              <option value="心静止">心静止</option>
+              <option value="VF">Vf継続（復帰せず）</option>
+            </select>
+          </div>
+          <div class="vf"><label>復帰後のHR</label>
+            <input type="number" id="vf_postDefibHr_3" min="0" max="250" placeholder="例:80（既定80）" style="border-color:#ff4d6e;"></div>
+        </div>
+      </div>
+    </div>
+    <textarea id="s_v3" style="display:none;""></textarea>
     <label>処置反応・病院交渉ポイント</label>
     <textarea id="s_r3" placeholder="例：輸液追加でBP 80/50。外傷センター直搬が望ましい。血液型O型。大量輸血プロトコル適応の可能性あり。"></textarea>
 
@@ -1534,17 +1612,55 @@ function collectVitalStruct(phase){
   const f = ['jcs','rr','hr','bps','bpd','temp','spo2','pupR','pupL','pupNote','ecg','vomit','nausea','palsy','bleed','note'];
   const o = {};
   f.forEach(n => { o[n] = _vfVal(n, phase); });
+  // CPA関連
+  const cpaEl = document.getElementById('vf_cpa_' + phase);
+  o.cpa = !!(cpaEl && cpaEl.checked);
+  o.defibCount       = _vfVal('defibCount', phase);
+  o.postDefibRhythm  = _vfVal('postDefibRhythm', phase);
+  o.postDefibHr      = _vfVal('postDefibHr', phase);
   return o;
 }
 function applyVitalStruct(phase, o){
   if(!o) return;
   Object.keys(o).forEach(n => {
     const el = document.getElementById('vf_' + n + '_' + phase);
-    if(el) el.value = o[n] || '';
+    if(el){
+      if(el.type === 'checkbox') el.checked = !!o[n];
+      else el.value = o[n] == null ? '' : o[n];
+    }
   });
+  // CPA表示状態を反映
+  if(typeof onCpaToggle === 'function'){ try{ onCpaToggle(phase, true); }catch(_){} }
 }
+
+// CPAチェックボックス onChange: HR/RR/BP を 0 にし、CPAフィールドを表示
+function onCpaToggle(phase, skipZero){
+  const cpa = document.getElementById('vf_cpa_' + phase);
+  const fields = document.getElementById('cpaFields_' + phase);
+  if(!cpa || !fields) return;
+  if(cpa.checked){
+    fields.style.display = 'block';
+    // バイタル数値フィールドを 0 に（既存値があれば残すオプション: skipZero=true）
+    if(!skipZero){
+      const zeroFields = [['hr','0'],['rr','0'],['bps','0'],['bpd','0']];
+      zeroFields.forEach(([n,v])=>{
+        const el = document.getElementById('vf_'+n+'_'+phase);
+        if(el && el.value === '') el.value = v;
+      });
+      // ECG: 未選択ならVFを既定で
+      const ecg = document.getElementById('vf_ecg_'+phase);
+      if(ecg && !ecg.value) ecg.value = 'VF';
+      // JCS: 未選択なら300（反応なし）
+      const jcs = document.getElementById('vf_jcs_'+phase);
+      if(jcs && !jcs.value) jcs.value = '300';
+    }
+  } else {
+    fields.style.display = 'none';
+  }
+}
+
 function clearVitalStruct(phase){
-  applyVitalStruct(phase, {jcs:'',rr:'',hr:'',bps:'',bpd:'',temp:'',spo2:'',pupR:'',pupL:'',pupNote:'',ecg:'',vomit:'',nausea:'',palsy:'',bleed:'',note:''});
+  applyVitalStruct(phase, {jcs:'',rr:'',hr:'',bps:'',bpd:'',temp:'',spo2:'',pupR:'',pupL:'',pupNote:'',ecg:'',vomit:'',nausea:'',palsy:'',bleed:'',note:'',cpa:false,defibCount:'',postDefibRhythm:'',postDefibHr:''});
 }
 
 
@@ -1684,7 +1800,7 @@ function toggleProtocolPaste(){
 // ・dynamicScript / procedureHooks は患者AIプロンプトに注入
 // ・trainingPoints は医師フィードバック評価軸に注入
 // ============================================================
-const BUILTIN_SCENARIOS = [{"id": "tmpl_acs_55m", "name": "①胸痛（急性下壁心筋梗塞）", "age": "55歳", "sex": "男性", "type": "cardiac", "chief": "胃のあたりの痛み・嘔気", "scene": "自宅居間。胸の前を押さえて苦悶顔貌、冷汗著明。30分前に心窩部痛発症。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。55歳男性、約30分前から心窩部に持続する痛みが続き救急要請。既往に脂質異常症・高血圧・糖尿病あり、近隣2次病院かかりつけ。直近2次病院10分、3次病院20分、ドクターヘリ要請可能。", "disprate": 0.9, "p1": "（苦悶顔貌で胸を押さえる）うっ…胃が痛い…吐き気もする…", "f1": "30分前に「胃のあたりが痛い」と言って苦しみ出しました。だんだん酷くなっています。脂質異常症・高血圧・糖尿病があり、いつもの病院は◯◯クリニックです。", "p2": "（息苦しそう）うっ…息が…苦しい…（呼びかけにうなずく程度、苦しくて発語不可）", "r2": "酸素投与後の改善に応じて応答。冷汗持続、頸静脈怒張あり、湿性ラ音持続。", "p3": "（無反応・発語なし）", "r3": "BVM換気では胸郭挙上不良・抵抗あり。LT挿入または気管挿管後は抵抗なく良好。Vfに対し除細動3回後にサイナスリズムへ復帰。", "hosp": "○○総合病院（3次救急・心臓カテーテル24h対応）", "hosp_info": "直近2次病院（かかりつけ）10分・3次病院20分・ドクターヘリ要請可。STEMI疑いのため3次搬送が望ましい。", "vstruct": {"1": {"jcs": "1", "rr": "28", "hr": "100", "bps": "100", "bpd": "70", "spo2": "92", "temp": "36.8", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "ST上昇", "vomit": "", "nausea": "あり", "palsy": "", "bleed": "", "note": "顔貌：苦悶。皮膚：冷汗・湿潤。頸静脈怒張あり。聴診：湿性ラ音（両肺野）。"}, "2": {"jcs": "3", "rr": "28", "hr": "130", "bps": "90", "bpd": "60", "spo2": "90", "temp": "36.8", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "ST上昇", "vomit": "", "nausea": "あり", "palsy": "", "bleed": "", "note": "顔貌：苦悶。冷汗・湿潤持続。頸静脈怒張あり。湿性ラ音持続。呼びかけにうなずくが苦しくて発語不可。心原性ショック移行。"}, "3": {"jcs": "300", "rr": "0", "hr": "0", "bps": "0", "bpd": "0", "spo2": "", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "対光反射なし", "ecg": "VF", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "顔貌：蒼白。冷汗・湿潤。CPA移行（車内収容5分後）。"}}, "trainingPoints": ["緊急度・重症度から早期搬送を判断・実施できたか", "ショック判断ができ、早期に酸素投与を実施したか", "心筋梗塞（特に下壁梗塞・右室梗塞合併）を考慮できたか", "酸素投与後にSpO2を確認し、投与量を調整／気道確保を実施したか", "心停止を早期に判断できたか（Vf検出と迅速除細動）"], "dynamicScript": "\n■ 酸素濃度別 SpO2 反応（処置反応の参考）\n  ・なし     : 92%(P1) → 90%(P2) → 段階的に86→80%(P2末期)\n  ・中濃度    : 94%(P1) → 92%(P2) → 88→83%\n  ・高濃度    : 98%(P1) → 95%(P2) → 88→84%\n  ・補助換気   : 92〜86%\n■ Phase2→3 移行（CPA前）\n  ・脈拍は徐々に上昇し最大160回/分\n  ・JCS Ⅱ-30 まで低下したら **舌根沈下による上気道閉塞**が出現。下顎挙上で改善\n■ Phase3（CPA）\n  ・心電図はVf。除細動を **3回**実施後にサイナスリズムへ復帰\n  ・BVM換気では胸郭挙上不良・抵抗あり。LT挿入または気管挿管後は換気抵抗消失", "procedureHooks": {"酸素投与（高濃度）": "SpO2 92→98%に改善。冷汗持続。", "酸素投与（中濃度）": "SpO2 92→94%に改善。", "補助換気": "胸郭挙上得られ、SpO2 86→92%に改善。", "下顎挙上": "気道開通、鼾呼吸消失。", "気道確保": "気道開通、換気量改善。", "除細動": "Vf持続（1回目・2回目）→3回目で洞調律へ復帰。CPR継続を。", "胸骨圧迫": "圧迫実施中。ETCO2 適正。脈拍未触知。", "BVM": "BVM換気抵抗あり、胸郭挙上不良。", "LT挿入": "LT挿入後は換気抵抗なし、両肺野で換気音聴取良好。", "挿管": "気管挿管後は換気抵抗なし、両肺野で換気音聴取良好。", "輸液": "末梢確保完了、生食100mL/h で開始。", "アドレナリン": "アドレナリン1mg静注実施。次のリズムチェックで評価。"}}, {"id": "tmpl_sah_55f", "name": "②意識障害（くも膜下出血）", "age": "55歳", "sex": "女性", "type": "stroke", "chief": "意識障害（卒倒）", "scene": "冬場の朝8時頃、自宅トイレで排便中に卒倒。仰向けで鼾呼吸あり、嘔吐跡。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。55歳女性、家族通報。冬場の朝8時頃トイレで排便中に卒倒、仰向けで鼾をかいて倒れている。既往に高血圧・II型糖尿病、近隣クリニックかかりつけ。直近2次病院5分、3次病院15分、ドクターヘリ要請可能。", "disprate": 0.9, "p1": "（無表情・発語なし。鼾呼吸あり。痛み刺激で逃避動作）", "f1": "発症時刻は朝7:45。それまで普段通りでした。普段の血圧は高い時で150。降圧剤と糖尿病薬（食後高血糖改善薬）を内服。インスリン・SU剤の使用はありません。最終食事は7:30。", "p2": "（無表情・無反応）", "r2": "下顎挙上で鼾呼吸消失・SpO2改善。再嘔吐あり、側臥位で誤嚥防止。", "p3": "（無反応・発語なし）", "r3": "搬送中に強直性痙攣→Vfへ移行。1回除細動でPEAへ。CPR継続。", "hosp": "○○脳神経外科センター（3次・脳血管内治療24h対応）", "hosp_info": "直近2次病院5分・3次病院（脳神経外科）15分・ドクターヘリ要請可。SAH疑いのため3次搬送が望ましい。", "vstruct": {"1": {"jcs": "20", "rr": "20", "hr": "110", "bps": "180", "bpd": "110", "spo2": "93", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "対光反射あり・左右差なし", "ecg": "洞性頻脈", "vomit": "あり（嘔吐跡）", "nausea": "", "palsy": "評価困難", "bleed": "", "note": "顔貌：無表情。鼾呼吸あり（舌根沈下疑い）。GCS 9（E3 V2 M4）。頭部外傷なし。"}, "2": {"jcs": "100", "rr": "14", "hr": "80", "bps": "200", "bpd": "130", "spo2": "93", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "洞調律", "vomit": "あり（再発）", "nausea": "", "palsy": "", "bleed": "", "note": "血圧上昇・徐脈傾向（Cushing現象疑い）。嘔吐再発あり、誤嚥注意。再破裂予防のため安静・刺激回避。"}, "3": {"jcs": "300", "rr": "10", "hr": "59", "bps": "220", "bpd": "150", "spo2": "75", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "洞性徐脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "強直性痙攣出現。SpO2低下（酸素投与下75%、補助換気で88%）。搬送中Vf→1回除細動後PEAへ。"}}, "trainingPoints": ["くも膜下出血を疑うことができたか（突然発症・激しい頭痛/卒倒・嘔吐）", "迅速搬送・安全搬送（再破裂予防：刺激最小化・血圧管理）の判断と実施", "再破裂に注意した活動（不必要な刺激回避・体動制限・暗環境）", "鼾呼吸（舌根沈下）への素早い気道確保", "嘔吐への対応（吸引・側臥位）と誤嚥予防", "突然のVfへの素早い除細動実施", "低血糖鑑別のための血糖測定実施"], "dynamicScript": "\n■ Phase1（接触時）\n  ・鼾呼吸あり（舌根沈下）。下顎挙上または気道確保で鼾呼吸消失・SpO2改善\n  ・酸素濃度別 SpO2: なし93% / 中濃度97% / 高濃度99%\n■ Phase2（車内収容後）\n  ・血圧上昇・徐脈傾向（Cushing現象）が出現\n  ・嘔吐の再発あり（誤嚥注意、側臥位推奨）\n  ・酸素濃度別 SpO2: なし93% / 中濃度96% / 高濃度98%\n■ Phase2→3 移行\n  ・車内収容5分後に **強直性痙攣**が出現\n  ・SpO2 75%まで低下、補助換気で88%まで回復\n■ Phase3（搬送中CPA）\n  ・Vfに移行。**除細動1回後にPEA**へ移行\n  ・PEA後はCPRと特定行為（輸液路・薬剤投与）を継続", "procedureHooks": {"下顎挙上": "鼾呼吸消失、SpO2 93→97%に改善、気道開通。", "気道確保": "鼾呼吸消失、SpO2 改善、気道開通。", "吸引": "口腔内嘔吐物を吸引、誤嚥防止。", "側臥位": "誤嚥予防として適切。再破裂予防のため愛護的に。", "酸素投与（高濃度）": "SpO2 93→99%に改善。", "酸素投与（中濃度）": "SpO2 93→97%に改善。", "補助換気": "痙攣・低換気時はSpO2 75→88%に改善。", "除細動": "Vfに対して1回除細動 → PEAへ移行。CPR継続を。", "胸骨圧迫": "PEA中、CPR継続。ETCO2 適正。", "アドレナリン": "アドレナリン1mg静注実施。次のリズムチェックで評価。", "輸液": "末梢確保完了、生食で開始。", "血糖測定": "血糖値110 mg/dL（低血糖は否定的）。"}}, {"id": "tmpl_hypogly_70m", "name": "③意識障害（低血糖）", "age": "70歳", "sex": "男性", "type": "other", "chief": "意識障害", "scene": "自宅寝室。家族が起こしに行ったところ意識レベル低下を発見。冷汗著明・蒼白。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。70歳男性、家族通報。昨日から体調不良で20時頃に早めに就寝、今朝起床せず家族が確認したところ意識レベル低下を発見。既往に高血圧・糖尿病あり、近隣クリニックかかりつけ。かかりつけ30分・直近2次15分・3次30分・ドクターヘリ要請不可。", "disprate": 0.9, "p1": "（うめき声、断片的発語のみ。問いかけに目を開けようとするが応答困難）", "f1": "昨日から体調が悪く20時頃に早めに就寝しました。昨日は食欲がなくほとんど食事をしていません（水分は摂っていました）。最終食事は昨日19時です。経口血糖降下薬と降圧薬を服用中。アレルギーはなし。頭痛は訴えていませんでした。", "p2": "（意識やや回復）うん…大丈夫…ありがとう…（顔色なお悪い、汗ばむ）", "r2": "ブドウ糖投与後、意識・バイタル次第に改善。再測定 血糖 120 mg/dL。発汗・湿潤は持続。", "p3": "（さらに改善し会話可能）気分はだいぶ楽になりました。", "r3": "搬送中、安定経過。原疾患（感染症等）の評価必要。", "hosp": "○○総合病院（2次救急）", "hosp_info": "かかりつけ30分・直近2次15分・3次30分・ドクターヘリ要請不可。低血糖は二次でも対応可能だが、原疾患（感染症・体温37.5℃・食事摂取不良）の精査必要。", "vstruct": {"1": {"jcs": "30", "rr": "24", "hr": "100", "bps": "140", "bpd": "90", "spo2": "88", "temp": "37.5", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 9（E2 V2 M5）。顔貌：蒼白。皮膚：冷汗・湿潤。鼾呼吸あり（軽度舌根沈下）。聴診：正常。【血糖測定で 30 mg/dL（重症低血糖）と判明】。"}, "2": {"jcs": "3", "rr": "24", "hr": "90", "bps": "130", "bpd": "60", "spo2": "95", "temp": "37.5", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "洞調律", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "ブドウ糖投与後。GCS 14（E4 V4 M6）に改善。冷汗・湿潤は持続。再測定 血糖 120 mg/dL。"}, "3": {"jcs": "1", "rr": "18", "hr": "80", "bps": "120", "bpd": "70", "spo2": "98", "temp": "37.4", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "洞調律", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "搬送中、意識清明・安定経過。発熱は持続のため原疾患（感染症）の評価が必要。"}}, "trainingPoints": ["状況・身体所見から意識障害の鑑別を試みたか（AIUEOTIPS等の系統的評価）", "血糖測定を確実に実施したか（意識障害患者では必須）", "低血糖確定後にブドウ糖投与プロトコルに従って実施したか", "ブドウ糖投与後の再評価（血糖再測定・意識/バイタル再評価）を適切に実施したか", "鼾呼吸（舌根沈下）への気道確保を実施したか", "原疾患（発熱37.5℃・食事摂取不良 → 感染症の可能性）を考慮したか"], "dynamicScript": "\n■ Phase1（接触時：低血糖状態）\n  ・JCS Ⅱ-30、鼾呼吸あり。気道確保（下顎挙上）で改善\n  ・酸素濃度別 SpO2: なし88% / 中濃度99% / 高濃度99%\n  ・**血糖測定を実施すれば 30 mg/dL（重症低血糖）が判明**\n  ・血糖測定なしでは原因不明のまま\n■ 重要な分岐\n  ・**ブドウ糖投与により Phase1→Phase2 に自動進行**（投与30秒後）\n  ・未投与であれば JCS は徐々に低下し気道閉塞リスク増大\n■ Phase2（ブドウ糖投与後）\n  ・意識・バイタル次第に改善（JCS Ⅰ-3、HR 100→90、SpO2 88→95%）\n  ・再測定で血糖 120 mg/dL\n  ・酸素濃度別 SpO2: なし95% / 中濃度99% / 高濃度99%\n■ 鑑別ポイント\n  ・体温37.5℃・昨日からの食事摂取不良 → **感染症（原疾患）の可能性**\n  ・経口血糖降下薬服用＋食事摂取不良 → 薬剤性低血糖の典型像", "procedureHooks": {"血糖測定": "血糖値 30 mg/dL（重症低血糖）と判明。", "ブドウ糖": "50%ブドウ糖 40mL を静注。約30秒後、意識・バイタルが改善（JCS Ⅱ-30→Ⅰ-3、HR 100→90、SpO2 88→95%）。再測定で血糖 120 mg/dL。", "ブドウ糖投与": "50%ブドウ糖 40mL を静注。約30秒後、意識・バイタルが改善（JCS Ⅱ-30→Ⅰ-3、HR 100→90、SpO2 88→95%）。再測定で血糖 120 mg/dL。", "下顎挙上": "鼾呼吸消失、気道開通、SpO2 88→92%に改善。", "気道確保": "鼾呼吸消失、気道開通。", "吸引": "口腔内に唾液貯留あり、吸引で除去。", "酸素投与（高濃度）": "SpO2 88→99%に改善。", "酸素投与（中濃度）": "SpO2 88→99%に改善。", "輸液": "末梢静脈路確保完了。低血糖確定後はブドウ糖投与準備。", "体温測定": "体温 37.5℃（軽度発熱、感染症の可能性）。"}, "phaseAdvanceRules": {"1": {"triggers": ["ブドウ糖", "ブドウ糖投与", "50%ブドウ糖"], "delaySec": 30, "advanceTo": 2, "message": "ブドウ糖投与により 30秒後に Phase2（改善）へ自動移行します"}}}, {"id": "tmpl_sepsis_70m", "name": "④ショック（敗血症性ショック）", "age": "70歳", "sex": "男性", "type": "other", "chief": "発熱・呼吸苦", "scene": "特養施設1階ベッド上で仰臥位。3日前から微熱・感冒症状、本日朝に高熱と頻呼吸を施設職員が発見。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "特養○○", "dispatch": "救急指令、救急1。70歳男性、特養施設職員通報。3日前から37℃の微熱と感冒症状、昨日夕方から発熱悪化、本日朝の見回りで高熱と呼吸苦・会話困難。既往に高血圧、近隣クリニックかかりつけ。直近2次30分・3次30分・ドクターヘリ早朝で要請不可。", "disprate": 0.9, "p1": "（呼吸が早く苦しそう、会話困難）はぁ…はぁ…（うなずき程度）", "f1": "3日前から感冒症状と微熱（37.0℃）あり様子見。昨日夕方から熱が上がり（37.9℃）呼吸が苦しそうでしたが「大丈夫」と言うので様子を見ていました。本日朝の見回りで熱がさらに上がり、ハーハーと呼吸苦のため通報しました。最終食事は昨日18時頃に少量、水分も少しのみ。尿はあまり出ていません。普段は自立歩行・ADL良好。", "p2": "（さらに意識低下、呼びかけに反応薄）", "r2": "補助換気でSpO2改善傾向。下肢挙上（ショック体位）で血圧わずか5mmHg上昇のみ。輸液で一時的に保持されるが3分後にPEA移行。", "p3": "（無反応・発語なし）", "r3": "PEA。胸骨圧迫・換気は良好（抵抗なし）。アドレナリン投与しても波形変化なし、自己心拍再開せず。", "hosp": "○○総合病院（2次救急・集中治療室）", "hosp_info": "直近2次30分・3次30分・ドクターヘリ早朝で要請不可。敗血症性ショック疑い、ICU管理可能な施設が望ましい。特定行為の指示要請が必要。", "vstruct": {"1": {"jcs": "20", "rr": "40", "hr": "100", "bps": "95", "bpd": "30", "spo2": "88", "temp": "39.3", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 10（E3 V2 M5）。顔貌：正常。皮膚：温かい（warm shock）。頸静脈怒張なし。聴診：湿性ラ音。発熱・頻呼吸・低血圧（脈圧狭小）→ qSOFA 3点・敗血症性ショック疑い。"}, "2": {"jcs": "100", "rr": "30", "hr": "120", "bps": "85", "bpd": "30", "spo2": "85", "temp": "39.3", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 9（E2 V2 M5）。皮膚：温かい・湿潤。頸静脈怒張なし。湿性ラ音持続。意識さらに低下（distributive shock 進行）。輸液後一時的にHR 140・BP 75/35（refractory shock）。"}, "3": {"jcs": "300", "rr": "0", "hr": "0", "bps": "0", "bpd": "0", "spo2": "", "temp": "39.0", "pupR": "4", "pupL": "4", "pupNote": "対光反射なし", "ecg": "PEA", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "心肺停止。PEA。換気抵抗なし、胸骨圧迫実施中。アドレナリン投与しても波形変化なし、自己心拍再開せず（refractory septic shock）。"}}, "trainingPoints": ["初期評価でショックと判断できたか（脈圧狭小・頻脈・頻呼吸・SpO2低下）", "ショック判断 → 重要臓器への酸素供給不足を理解し、高濃度酸素を投与できたか", "ショックの分類を理解しているか（distributive/septic vs cardiogenic vs hypovolemic vs obstructive）", "心原性ショックを否定できているか（頸静脈怒張なし・温かい皮膚・脈圧狭小・下腿浮腫なし）", "ワーストシナリオ（CPA移行）に備えた準備（AED装着・モニター継続）ができたか", "CPA早期認識、波形確認、特定行為（輸液・LT/挿管・アドレナリン）の指示要請ができたか", "感染源の評価（呼吸器症状・尿量低下・湿性ラ音）と適切な搬送先選定"], "dynamicScript": "\n■ Phase1（接触時：warm shock）\n  ・JCS Ⅱ-20、頻呼吸40回/分、頻脈100、BP 95/30（脈圧狭小）、SpO2 88%、体温39.3℃\n  ・**温かい皮膚・頸静脈怒張なし**（心原性除外、distributive/septic shock の所見）\n  ・酸素濃度別 SpO2: なし88% / 中濃度88% / 高濃度88% / **補助換気90%（V/Q mismatch のため酸素のみでは改善困難）**\n  ・下肢挙上で血圧わずか5mmHg上昇（前負荷増加効果限定的）\n■ Phase2（車内収容後：意識低下進行）\n  ・JCS Ⅲ-100、HR 120、BP 85/30、SpO2 85%、体温39.3℃継続\n  ・酸素濃度別 SpO2: 補助換気90% / 高濃度85% / 中濃度80%\n■ 重要な分岐：輸液の効果\n  ・**輸液開始しても3分後にPEA移行**（refractory septic shock）\n  ・輸液後の一時バイタル：HR 140↑・BP 75/35↓（前負荷反応性低下＝refractory shock）\n  ・輸液なしでも搬送中に PEA 移行\n■ Phase3（CPA：PEA）\n  ・PEA、換気抵抗なし、胸骨圧迫継続\n  ・アドレナリン投与しても波形変化なし、自己心拍再開せず\n  ・搬送先到着まで CPR・特定行為継続", "procedureHooks": {"ショック体位": "下肢挙上で血圧わずか5mmHg上昇（前負荷増加効果限定的）。", "下肢挙上": "下肢挙上で血圧わずか5mmHg上昇。", "酸素投与（高濃度）": "SpO2 88→88%（変化なし、V/Q mismatch のため）。", "酸素投与（中濃度）": "SpO2 88→88%（変化なし）。", "補助換気": "BVM換気でSpO2 88→90%に改善。胸郭挙上良好、抵抗なし。", "輸液": "末梢静脈路確保、生理食塩水急速投与。一時的にBP維持されるがHR 120→140↑、BP 85/30→75/35↓（refractory shock）。約3分後にPEA移行。", "心肺機能停止前輸液": "末梢確保完了、急速輸液開始。一時保持されるがrefractory shock のため約3分でPEA移行。", "胸骨圧迫": "圧迫継続中。ETCO2 適正。", "アドレナリン": "アドレナリン1mg静注。波形変化なし、自己心拍再開せず。", "BVM": "BVM換気抵抗なし、胸郭挙上良好。", "LT挿入": "LT挿入後も換気抵抗なし、両肺野で換気音聴取。", "挿管": "気管挿管後も換気抵抗なし、良好な換気。", "AED装着": "AED装着完了、波形確認可能。Phase2でPEA → ショック非適応の表示。", "血糖測定": "血糖値 130 mg/dL（低血糖は否定）。"}, "phaseAdvanceRules": {"2": {"triggers": ["輸液", "輸液開始", "心肺機能停止前輸液", "急速輸液"], "delaySec": 180, "advanceTo": 3, "message": "輸液開始 → 3分後にPEA移行（refractory septic shock）"}}}];
+const BUILTIN_SCENARIOS = [{"id": "tmpl_acs_55m", "name": "①胸痛（急性下壁心筋梗塞）", "age": "55歳", "sex": "男性", "type": "cardiac", "chief": "胃のあたりの痛み・嘔気", "scene": "自宅居間。胸の前を押さえて苦悶顔貌、冷汗著明。30分前に心窩部痛発症。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。55歳男性、約30分前から心窩部に持続する痛みが続き救急要請。既往に脂質異常症・高血圧・糖尿病あり、近隣2次病院かかりつけ。直近2次病院10分、3次病院20分、ドクターヘリ要請可能。", "disprate": 0.9, "p1": "（苦悶顔貌で胸を押さえる）うっ…胃が痛い…吐き気もする…", "f1": "30分前に「胃のあたりが痛い」と言って苦しみ出しました。だんだん酷くなっています。脂質異常症・高血圧・糖尿病があり、いつもの病院は◯◯クリニックです。", "p2": "（息苦しそう）うっ…息が…苦しい…（呼びかけにうなずく程度、苦しくて発語不可）", "r2": "酸素投与後の改善に応じて応答。冷汗持続、頸静脈怒張あり、湿性ラ音持続。", "p3": "（無反応・発語なし）", "r3": "BVM換気では胸郭挙上不良・抵抗あり。LT挿入または気管挿管後は抵抗なく良好。Vfに対し除細動3回後にサイナスリズムへ復帰。", "hosp": "○○総合病院（3次救急・心臓カテーテル24h対応）", "hosp_info": "直近2次病院（かかりつけ）10分・3次病院20分・ドクターヘリ要請可。STEMI疑いのため3次搬送が望ましい。", "vstruct": {"1": {"jcs": "1", "rr": "28", "hr": "100", "bps": "100", "bpd": "70", "spo2": "92", "temp": "36.8", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "ST上昇", "vomit": "", "nausea": "あり", "palsy": "", "bleed": "", "note": "顔貌：苦悶。皮膚：冷汗・湿潤。頸静脈怒張あり。聴診：湿性ラ音（両肺野）。"}, "2": {"jcs": "3", "rr": "28", "hr": "130", "bps": "90", "bpd": "60", "spo2": "90", "temp": "36.8", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "ST上昇", "vomit": "", "nausea": "あり", "palsy": "", "bleed": "", "note": "顔貌：苦悶。冷汗・湿潤持続。頸静脈怒張あり。湿性ラ音持続。呼びかけにうなずくが苦しくて発語不可。心原性ショック移行。"}, "3": {"jcs": "300", "rr": "0", "hr": "0", "bps": "0", "bpd": "0", "spo2": "", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "対光反射なし", "ecg": "VF", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "顔貌：蒼白。冷汗・湿潤。CPA移行（車内収容5分後）。", "cpa": true, "defibCount": "3", "postDefibRhythm": "洞調律", "postDefibHr": "80"}}, "trainingPoints": ["緊急度・重症度から早期搬送を判断・実施できたか", "ショック判断ができ、早期に酸素投与を実施したか", "心筋梗塞（特に下壁梗塞・右室梗塞合併）を考慮できたか", "酸素投与後にSpO2を確認し、投与量を調整／気道確保を実施したか", "心停止を早期に判断できたか（Vf検出と迅速除細動）"], "dynamicScript": "\n■ 酸素濃度別 SpO2 反応（処置反応の参考）\n  ・なし     : 92%(P1) → 90%(P2) → 段階的に86→80%(P2末期)\n  ・中濃度    : 94%(P1) → 92%(P2) → 88→83%\n  ・高濃度    : 98%(P1) → 95%(P2) → 88→84%\n  ・補助換気   : 92〜86%\n■ Phase2→3 移行（CPA前）\n  ・脈拍は徐々に上昇し最大160回/分\n  ・JCS Ⅱ-30 まで低下したら **舌根沈下による上気道閉塞**が出現。下顎挙上で改善\n■ Phase3（CPA）\n  ・心電図はVf。除細動を **3回**実施後にサイナスリズムへ復帰\n  ・BVM換気では胸郭挙上不良・抵抗あり。LT挿入または気管挿管後は換気抵抗消失", "procedureHooks": {"酸素投与（高濃度）": "SpO2 92→98%に改善。冷汗持続。", "酸素投与（中濃度）": "SpO2 92→94%に改善。", "補助換気": "胸郭挙上得られ、SpO2 86→92%に改善。", "下顎挙上": "気道開通、鼾呼吸消失。", "気道確保": "気道開通、換気量改善。", "除細動": "Vf持続（1回目・2回目）→3回目で洞調律へ復帰。CPR継続を。", "胸骨圧迫": "圧迫実施中。ETCO2 適正。脈拍未触知。", "BVM": "BVM換気抵抗あり、胸郭挙上不良。", "LT挿入": "LT挿入後は換気抵抗なし、両肺野で換気音聴取良好。", "挿管": "気管挿管後は換気抵抗なし、両肺野で換気音聴取良好。", "輸液": "末梢確保完了、生食100mL/h で開始。", "アドレナリン": "アドレナリン1mg静注実施。次のリズムチェックで評価。"}}, {"id": "tmpl_sah_55f", "name": "②意識障害（くも膜下出血）", "age": "55歳", "sex": "女性", "type": "stroke", "chief": "意識障害（卒倒）", "scene": "冬場の朝8時頃、自宅トイレで排便中に卒倒。仰向けで鼾呼吸あり、嘔吐跡。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。55歳女性、家族通報。冬場の朝8時頃トイレで排便中に卒倒、仰向けで鼾をかいて倒れている。既往に高血圧・II型糖尿病、近隣クリニックかかりつけ。直近2次病院5分、3次病院15分、ドクターヘリ要請可能。", "disprate": 0.9, "p1": "（無表情・発語なし。鼾呼吸あり。痛み刺激で逃避動作）", "f1": "発症時刻は朝7:45。それまで普段通りでした。普段の血圧は高い時で150。降圧剤と糖尿病薬（食後高血糖改善薬）を内服。インスリン・SU剤の使用はありません。最終食事は7:30。", "p2": "（無表情・無反応）", "r2": "下顎挙上で鼾呼吸消失・SpO2改善。再嘔吐あり、側臥位で誤嚥防止。", "p3": "（無反応・発語なし）", "r3": "搬送中に強直性痙攣→Vfへ移行。1回除細動でPEAへ。CPR継続。", "hosp": "○○脳神経外科センター（3次・脳血管内治療24h対応）", "hosp_info": "直近2次病院5分・3次病院（脳神経外科）15分・ドクターヘリ要請可。SAH疑いのため3次搬送が望ましい。", "vstruct": {"1": {"jcs": "20", "rr": "20", "hr": "110", "bps": "180", "bpd": "110", "spo2": "93", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "対光反射あり・左右差なし", "ecg": "洞性頻脈", "vomit": "あり（嘔吐跡）", "nausea": "", "palsy": "評価困難", "bleed": "", "note": "顔貌：無表情。鼾呼吸あり（舌根沈下疑い）。GCS 9（E3 V2 M4）。頭部外傷なし。"}, "2": {"jcs": "100", "rr": "14", "hr": "80", "bps": "200", "bpd": "130", "spo2": "93", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "洞調律", "vomit": "あり（再発）", "nausea": "", "palsy": "", "bleed": "", "note": "血圧上昇・徐脈傾向（Cushing現象疑い）。嘔吐再発あり、誤嚥注意。再破裂予防のため安静・刺激回避。"}, "3": {"jcs": "300", "rr": "0", "hr": "0", "bps": "0", "bpd": "0", "spo2": "", "temp": "36.8", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "VF", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "搬送中Vf移行。CPA。1回除細動後PEAへ移行。CPR・特定行為継続。", "cpa": true, "defibCount": "1", "postDefibRhythm": "PEA", "postDefibHr": "0"}}, "trainingPoints": ["くも膜下出血を疑うことができたか（突然発症・激しい頭痛/卒倒・嘔吐）", "迅速搬送・安全搬送（再破裂予防：刺激最小化・血圧管理）の判断と実施", "再破裂に注意した活動（不必要な刺激回避・体動制限・暗環境）", "鼾呼吸（舌根沈下）への素早い気道確保", "嘔吐への対応（吸引・側臥位）と誤嚥予防", "突然のVfへの素早い除細動実施", "低血糖鑑別のための血糖測定実施"], "dynamicScript": "\n■ Phase1（接触時）\n  ・鼾呼吸あり（舌根沈下）。下顎挙上または気道確保で鼾呼吸消失・SpO2改善\n  ・酸素濃度別 SpO2: なし93% / 中濃度97% / 高濃度99%\n■ Phase2（車内収容後）\n  ・血圧上昇・徐脈傾向（Cushing現象）が出現\n  ・嘔吐の再発あり（誤嚥注意、側臥位推奨）\n  ・酸素濃度別 SpO2: なし93% / 中濃度96% / 高濃度98%\n■ Phase2→3 移行\n  ・車内収容5分後に **強直性痙攣**が出現\n  ・SpO2 75%まで低下、補助換気で88%まで回復\n■ Phase3（搬送中CPA）\n  ・Vfに移行。**除細動1回後にPEA**へ移行\n  ・PEA後はCPRと特定行為（輸液路・薬剤投与）を継続", "procedureHooks": {"下顎挙上": "鼾呼吸消失、SpO2 93→97%に改善、気道開通。", "気道確保": "鼾呼吸消失、SpO2 改善、気道開通。", "吸引": "口腔内嘔吐物を吸引、誤嚥防止。", "側臥位": "誤嚥予防として適切。再破裂予防のため愛護的に。", "酸素投与（高濃度）": "SpO2 93→99%に改善。", "酸素投与（中濃度）": "SpO2 93→97%に改善。", "補助換気": "痙攣・低換気時はSpO2 75→88%に改善。", "除細動": "Vfに対して1回除細動 → PEAへ移行。CPR継続を。", "胸骨圧迫": "PEA中、CPR継続。ETCO2 適正。", "アドレナリン": "アドレナリン1mg静注実施。次のリズムチェックで評価。", "輸液": "末梢確保完了、生食で開始。", "血糖測定": "血糖値110 mg/dL（低血糖は否定的）。"}}, {"id": "tmpl_hypogly_70m", "name": "③意識障害（低血糖）", "age": "70歳", "sex": "男性", "type": "other", "chief": "意識障害", "scene": "自宅寝室。家族が起こしに行ったところ意識レベル低下を発見。冷汗著明・蒼白。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "", "dispatch": "救急指令、救急1。70歳男性、家族通報。昨日から体調不良で20時頃に早めに就寝、今朝起床せず家族が確認したところ意識レベル低下を発見。既往に高血圧・糖尿病あり、近隣クリニックかかりつけ。かかりつけ30分・直近2次15分・3次30分・ドクターヘリ要請不可。", "disprate": 0.9, "p1": "（うめき声、断片的発語のみ。問いかけに目を開けようとするが応答困難）", "f1": "昨日から体調が悪く20時頃に早めに就寝しました。昨日は食欲がなくほとんど食事をしていません（水分は摂っていました）。最終食事は昨日19時です。経口血糖降下薬と降圧薬を服用中。アレルギーはなし。頭痛は訴えていませんでした。", "p2": "（意識やや回復）うん…大丈夫…ありがとう…（顔色なお悪い、汗ばむ）", "r2": "ブドウ糖投与後、意識・バイタル次第に改善。再測定 血糖 120 mg/dL。発汗・湿潤は持続。", "p3": "（さらに改善し会話可能）気分はだいぶ楽になりました。", "r3": "搬送中、安定経過。原疾患（感染症等）の評価必要。", "hosp": "○○総合病院（2次救急）", "hosp_info": "かかりつけ30分・直近2次15分・3次30分・ドクターヘリ要請不可。低血糖は二次でも対応可能だが、原疾患（感染症・体温37.5℃・食事摂取不良）の精査必要。", "vstruct": {"1": {"jcs": "30", "rr": "24", "hr": "100", "bps": "140", "bpd": "90", "spo2": "88", "temp": "37.5", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 9（E2 V2 M5）。顔貌：蒼白。皮膚：冷汗・湿潤。鼾呼吸あり（軽度舌根沈下）。聴診：正常。【血糖測定で 30 mg/dL（重症低血糖）と判明】。"}, "2": {"jcs": "3", "rr": "24", "hr": "90", "bps": "130", "bpd": "60", "spo2": "95", "temp": "37.5", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "洞調律", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "ブドウ糖投与後。GCS 14（E4 V4 M6）に改善。冷汗・湿潤は持続。再測定 血糖 120 mg/dL。"}, "3": {"jcs": "1", "rr": "18", "hr": "80", "bps": "120", "bpd": "70", "spo2": "98", "temp": "37.4", "pupR": "3", "pupL": "3", "pupNote": "", "ecg": "洞調律", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "搬送中、意識清明・安定経過。発熱は持続のため原疾患（感染症）の評価が必要。"}}, "trainingPoints": ["状況・身体所見から意識障害の鑑別を試みたか（AIUEOTIPS等の系統的評価）", "血糖測定を確実に実施したか（意識障害患者では必須）", "低血糖確定後にブドウ糖投与プロトコルに従って実施したか", "ブドウ糖投与後の再評価（血糖再測定・意識/バイタル再評価）を適切に実施したか", "鼾呼吸（舌根沈下）への気道確保を実施したか", "原疾患（発熱37.5℃・食事摂取不良 → 感染症の可能性）を考慮したか"], "dynamicScript": "\n■ Phase1（接触時：低血糖状態）\n  ・JCS Ⅱ-30、鼾呼吸あり。気道確保（下顎挙上）で改善\n  ・酸素濃度別 SpO2: なし88% / 中濃度99% / 高濃度99%\n  ・**血糖測定を実施すれば 30 mg/dL（重症低血糖）が判明**\n  ・血糖測定なしでは原因不明のまま\n■ 重要な分岐\n  ・**ブドウ糖投与により Phase1→Phase2 に自動進行**（投与30秒後）\n  ・未投与であれば JCS は徐々に低下し気道閉塞リスク増大\n■ Phase2（ブドウ糖投与後）\n  ・意識・バイタル次第に改善（JCS Ⅰ-3、HR 100→90、SpO2 88→95%）\n  ・再測定で血糖 120 mg/dL\n  ・酸素濃度別 SpO2: なし95% / 中濃度99% / 高濃度99%\n■ 鑑別ポイント\n  ・体温37.5℃・昨日からの食事摂取不良 → **感染症（原疾患）の可能性**\n  ・経口血糖降下薬服用＋食事摂取不良 → 薬剤性低血糖の典型像", "procedureHooks": {"血糖測定": "血糖値 30 mg/dL（重症低血糖）と判明。", "ブドウ糖": "50%ブドウ糖 40mL を静注。約30秒後、意識・バイタルが改善（JCS Ⅱ-30→Ⅰ-3、HR 100→90、SpO2 88→95%）。再測定で血糖 120 mg/dL。", "ブドウ糖投与": "50%ブドウ糖 40mL を静注。約30秒後、意識・バイタルが改善（JCS Ⅱ-30→Ⅰ-3、HR 100→90、SpO2 88→95%）。再測定で血糖 120 mg/dL。", "下顎挙上": "鼾呼吸消失、気道開通、SpO2 88→92%に改善。", "気道確保": "鼾呼吸消失、気道開通。", "吸引": "口腔内に唾液貯留あり、吸引で除去。", "酸素投与（高濃度）": "SpO2 88→99%に改善。", "酸素投与（中濃度）": "SpO2 88→99%に改善。", "輸液": "末梢静脈路確保完了。低血糖確定後はブドウ糖投与準備。", "体温測定": "体温 37.5℃（軽度発熱、感染症の可能性）。"}, "phaseAdvanceRules": {"1": {"triggers": ["ブドウ糖", "ブドウ糖投与", "50%ブドウ糖"], "delaySec": 30, "advanceTo": 2, "message": "ブドウ糖投与により 30秒後に Phase2（改善）へ自動移行します"}}}, {"id": "tmpl_sepsis_70m", "name": "④ショック（敗血症性ショック）", "age": "70歳", "sex": "男性", "type": "other", "chief": "発熱・呼吸苦", "scene": "特養施設1階ベッド上で仰臥位。3日前から微熱・感冒症状、本日朝に高熱と頻呼吸を施設職員が発見。", "unit": "救急1", "disptype": "救急", "address": "（任意）", "landmark": "特養○○", "dispatch": "救急指令、救急1。70歳男性、特養施設職員通報。3日前から37℃の微熱と感冒症状、昨日夕方から発熱悪化、本日朝の見回りで高熱と呼吸苦・会話困難。既往に高血圧、近隣クリニックかかりつけ。直近2次30分・3次30分・ドクターヘリ早朝で要請不可。", "disprate": 0.9, "p1": "（呼吸が早く苦しそう、会話困難）はぁ…はぁ…（うなずき程度）", "f1": "3日前から感冒症状と微熱（37.0℃）あり様子見。昨日夕方から熱が上がり（37.9℃）呼吸が苦しそうでしたが「大丈夫」と言うので様子を見ていました。本日朝の見回りで熱がさらに上がり、ハーハーと呼吸苦のため通報しました。最終食事は昨日18時頃に少量、水分も少しのみ。尿はあまり出ていません。普段は自立歩行・ADL良好。", "p2": "（さらに意識低下、呼びかけに反応薄）", "r2": "補助換気でSpO2改善傾向。下肢挙上（ショック体位）で血圧わずか5mmHg上昇のみ。輸液で一時的に保持されるが3分後にPEA移行。", "p3": "（無反応・発語なし）", "r3": "PEA。胸骨圧迫・換気は良好（抵抗なし）。アドレナリン投与しても波形変化なし、自己心拍再開せず。", "hosp": "○○総合病院（2次救急・集中治療室）", "hosp_info": "直近2次30分・3次30分・ドクターヘリ早朝で要請不可。敗血症性ショック疑い、ICU管理可能な施設が望ましい。特定行為の指示要請が必要。", "vstruct": {"1": {"jcs": "20", "rr": "40", "hr": "100", "bps": "95", "bpd": "30", "spo2": "88", "temp": "39.3", "pupR": "3", "pupL": "3", "pupNote": "対光反射あり", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 10（E3 V2 M5）。顔貌：正常。皮膚：温かい（warm shock）。頸静脈怒張なし。聴診：湿性ラ音。発熱・頻呼吸・低血圧（脈圧狭小）→ qSOFA 3点・敗血症性ショック疑い。"}, "2": {"jcs": "100", "rr": "30", "hr": "120", "bps": "85", "bpd": "30", "spo2": "85", "temp": "39.3", "pupR": "4", "pupL": "4", "pupNote": "", "ecg": "洞性頻脈", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "GCS 9（E2 V2 M5）。皮膚：温かい・湿潤。頸静脈怒張なし。湿性ラ音持続。意識さらに低下（distributive shock 進行）。輸液後一時的にHR 140・BP 75/35（refractory shock）。"}, "3": {"jcs": "300", "rr": "0", "hr": "0", "bps": "0", "bpd": "0", "spo2": "", "temp": "39.0", "pupR": "4", "pupL": "4", "pupNote": "対光反射なし", "ecg": "PEA", "vomit": "", "nausea": "", "palsy": "", "bleed": "", "note": "心肺停止。PEA。換気抵抗なし、胸骨圧迫実施中。アドレナリン投与しても波形変化なし、自己心拍再開せず（refractory septic shock）。", "cpa": true, "defibCount": "999", "postDefibRhythm": "心静止", "postDefibHr": "0"}}, "trainingPoints": ["初期評価でショックと判断できたか（脈圧狭小・頻脈・頻呼吸・SpO2低下）", "ショック判断 → 重要臓器への酸素供給不足を理解し、高濃度酸素を投与できたか", "ショックの分類を理解しているか（distributive/septic vs cardiogenic vs hypovolemic vs obstructive）", "心原性ショックを否定できているか（頸静脈怒張なし・温かい皮膚・脈圧狭小・下腿浮腫なし）", "ワーストシナリオ（CPA移行）に備えた準備（AED装着・モニター継続）ができたか", "CPA早期認識、波形確認、特定行為（輸液・LT/挿管・アドレナリン）の指示要請ができたか", "感染源の評価（呼吸器症状・尿量低下・湿性ラ音）と適切な搬送先選定"], "dynamicScript": "\n■ Phase1（接触時：warm shock）\n  ・JCS Ⅱ-20、頻呼吸40回/分、頻脈100、BP 95/30（脈圧狭小）、SpO2 88%、体温39.3℃\n  ・**温かい皮膚・頸静脈怒張なし**（心原性除外、distributive/septic shock の所見）\n  ・酸素濃度別 SpO2: なし88% / 中濃度88% / 高濃度88% / **補助換気90%（V/Q mismatch のため酸素のみでは改善困難）**\n  ・下肢挙上で血圧わずか5mmHg上昇（前負荷増加効果限定的）\n■ Phase2（車内収容後：意識低下進行）\n  ・JCS Ⅲ-100、HR 120、BP 85/30、SpO2 85%、体温39.3℃継続\n  ・酸素濃度別 SpO2: 補助換気90% / 高濃度85% / 中濃度80%\n■ 重要な分岐：輸液の効果\n  ・**輸液開始しても3分後にPEA移行**（refractory septic shock）\n  ・輸液後の一時バイタル：HR 140↑・BP 75/35↓（前負荷反応性低下＝refractory shock）\n  ・輸液なしでも搬送中に PEA 移行\n■ Phase3（CPA：PEA）\n  ・PEA、換気抵抗なし、胸骨圧迫継続\n  ・アドレナリン投与しても波形変化なし、自己心拍再開せず\n  ・搬送先到着まで CPR・特定行為継続", "procedureHooks": {"ショック体位": "下肢挙上で血圧わずか5mmHg上昇（前負荷増加効果限定的）。", "下肢挙上": "下肢挙上で血圧わずか5mmHg上昇。", "酸素投与（高濃度）": "SpO2 88→88%（変化なし、V/Q mismatch のため）。", "酸素投与（中濃度）": "SpO2 88→88%（変化なし）。", "補助換気": "BVM換気でSpO2 88→90%に改善。胸郭挙上良好、抵抗なし。", "輸液": "末梢静脈路確保、生理食塩水急速投与。一時的にBP維持されるがHR 120→140↑、BP 85/30→75/35↓（refractory shock）。約3分後にPEA移行。", "心肺機能停止前輸液": "末梢確保完了、急速輸液開始。一時保持されるがrefractory shock のため約3分でPEA移行。", "胸骨圧迫": "圧迫継続中。ETCO2 適正。", "アドレナリン": "アドレナリン1mg静注。波形変化なし、自己心拍再開せず。", "BVM": "BVM換気抵抗なし、胸郭挙上良好。", "LT挿入": "LT挿入後も換気抵抗なし、両肺野で換気音聴取。", "挿管": "気管挿管後も換気抵抗なし、良好な換気。", "AED装着": "AED装着完了、波形確認可能。Phase2でPEA → ショック非適応の表示。", "血糖測定": "血糖値 130 mg/dL（低血糖は否定）。"}, "phaseAdvanceRules": {"2": {"triggers": ["輸液", "輸液開始", "心肺機能停止前輸液", "急速輸液"], "delaySec": 180, "advanceTo": 3, "message": "輸液開始 → 3分後にPEA移行（refractory septic shock）"}}}];
 
 function applyBuiltinTemplate(id){
   const tmpl = BUILTIN_SCENARIOS.find(s => s.id === id);
@@ -1848,6 +1964,11 @@ function startTraining(){
 
   // 持続処置のリセット
   try{ clearActiveTreatments(); }catch(_){}
+  // 処置押下回数のリセット（除細動カウンタ等）
+  try{ clearProcPressCounts(); }catch(_){}
+
+  // monitorData を即座に Phase1 バイタルで初期化（傷病者音などのため）
+  try{ parseVitalsFromScenario(); }catch(_){}
 
   chatHistory=[];
   fullLog=[];
@@ -1974,8 +2095,18 @@ function setPhase(n){
     const labels={1:'🚨 現場接触フェーズへ移行',2:'🚑 車内収容フェーズへ移行',3:'🏥 搬送開始フェーズへ移行'};
     addSys(labels[n]);
     chatHistory=[];
+    // フェーズ遷移時は処置押下回数をリセット（新フェーズで仕切り直し）
+    try{ clearProcPressCounts(); }catch(_){}
   }
-  // フェーズ遷移時：持続処置をリパース→新フェーズのバイタルに再適用
+  // フェーズ遷移：先に新フェーズの基本バイタルを monitorData に反映
+  try{ parseVitalsFromScenario(); }catch(e){ console.error('parseVital error:', e); }
+  // 傷病者音が再生中ならパラメータ更新
+  try{
+    if(typeof patientAudio !== 'undefined' && patientAudio && patientAudio.playing){
+      parsePatientAudioState();
+    }
+  }catch(_){}
+  // 持続処置をリパース→新フェーズのバイタルに再適用（トゥイーンで重ね描き）
   try{ reapplyActiveTreatmentsAfterPhaseShift(); }catch(e){ console.error('reapplyTx error:', e); }
 }
 
@@ -2428,16 +2559,26 @@ function togglePatientAudio(){
 }
 
 function parsePatientAudioState(){
-  const s = (scenario && scenario.v1) ? scenario.v1 : '';
-  const hr = parseInt(monitorData.hr);
-  const rr = parseInt(monitorData.rr);
-  const sbp = parseInt((monitorData.bp||'').split('/')[0]);
+  // 現在フェーズのバイタルを vstruct から優先取得
+  const vs = (scenario && scenario.vstruct && scenario.vstruct[currentPhase]) || {};
+  // 現フェーズの patient テキスト + note を結合して状況判定に使う
+  const phaseTexts = {
+    1: scenario ? (scenario.p1 || '') + ' ' + (vs.note||'') + ' ' + (scenario.v1||'') : '',
+    2: scenario ? (scenario.p2 || '') + ' ' + (vs.note||'') + ' ' + (scenario.v2||'') : '',
+    3: scenario ? (scenario.p3 || '') + ' ' + (vs.note||'') + ' ' + (scenario.v3||'') : ''
+  };
+  const s = phaseTexts[currentPhase] || (scenario ? (scenario.v1||'') : '');
+  // HR/RR/BP は vstruct → monitorData の順で取得
+  let hr  = parseInt(vs.hr);  if(isNaN(hr))  hr  = parseInt(monitorData.hr);
+  let rr  = parseInt(vs.rr);  if(isNaN(rr))  rr  = parseInt(monitorData.rr);
+  let sbp = parseInt(vs.bps); if(isNaN(sbp)) sbp = parseInt((monitorData.bp||'').split('/')[0]);
   // CPA判定
-  patientAudio.cpa = (hr===0) || /心肺停止|CPA|心停止|脈なし|脈触知不能|脈拍なし/i.test(s);
+  patientAudio.cpa = (hr===0) || /心肺停止|CPA|心停止|脈なし|脈触知不能|脈拍なし/i.test(s)
+                  || /(?<![a-zA-Z無])(?:VF|Vf|vf|vF)(?![a-zA-Z])|PEA|心室細動|心静止|asystole/i.test(vs.ecg||'');
   // 橈骨微弱判定（低血圧 or 明示）
   patientAudio.weakPulse = /橈骨.{0,6}微弱|微弱な脈|触知困難|弱い脈/i.test(s) || (!isNaN(sbp) && sbp<90);
   // 呼吸タイプ
-  if(/いびき|気道閉塞|舌根沈下|スノーリング/i.test(s)) patientAudio.breathType='snoring';
+  if(/いびき|気道閉塞|舌根沈下|スノーリング|鼾呼吸/i.test(s)) patientAudio.breathType='snoring';
   else if(/失調性|下顎呼吸|あえぎ|死戦期|agonal|gasping/i.test(s)) patientAudio.breathType='ataxic';
   else if(/頻呼吸|浅速/i.test(s) || (!isNaN(rr) && rr>24)) patientAudio.breathType='tachy';
   else if(/徐呼吸/i.test(s) || (!isNaN(rr) && rr<10 && rr>0)) patientAudio.breathType='brady';
@@ -2494,13 +2635,21 @@ function playPulseBeep(){
 
 function scheduleNextPulse(){
   if(!patientAudio.playing) return;
-  const hr = parseInt(monitorData.hr) || 80;
+  // HR取得: vstruct を優先、なければ monitorData
+  let hr = NaN;
+  if(scenario && scenario.vstruct && scenario.vstruct[currentPhase] && scenario.vstruct[currentPhase].hr !== ''){
+    hr = parseInt(scenario.vstruct[currentPhase].hr);
+  }
+  if(isNaN(hr)){
+    hr = parseInt(monitorData.hr);
+  }
+  if(isNaN(hr)) hr = 80;  // 最終フォールバック
   if(patientAudio.cpa || hr<=0){
     patientAudio.pulseTimer = setTimeout(scheduleNextPulse, 1000);
     return;
   }
   playPulseBeep();
-  const interval = Math.max(250, 60000 / hr);
+  const interval = Math.max(200, 60000 / hr);
   patientAudio.pulseTimer = setTimeout(scheduleNextPulse, interval);
 }
 
@@ -2560,7 +2709,15 @@ function scheduleNextBreath(){
     return;
   }
   playBreathCycle(type);
-  const rr = parseInt(monitorData.rr) || 16;
+  // RR取得: vstruct を優先、なければ monitorData
+  let rr = NaN;
+  if(scenario && scenario.vstruct && scenario.vstruct[currentPhase] && scenario.vstruct[currentPhase].rr !== ''){
+    rr = parseInt(scenario.vstruct[currentPhase].rr);
+  }
+  if(isNaN(rr)){
+    rr = parseInt(monitorData.rr);
+  }
+  if(isNaN(rr)) rr = 16;
   let cycleMs;
   if(type==='ataxic'){
     // 失調性：不規則（2〜9秒）
@@ -3059,6 +3216,19 @@ function clearActiveTreatments(){
   renderActiveTreatmentsBar();
 }
 
+// === 処置押下回数の追跡（除細動など回数依存の処置用） ===
+let procPressCounts = {};
+function clearProcPressCounts(){
+  procPressCounts = {};
+}
+function bumpProcPressCount(key){
+  procPressCounts[key] = (procPressCounts[key] || 0) + 1;
+  return procPressCounts[key];
+}
+function getProcPressCount(key){
+  return procPressCounts[key] || 0;
+}
+
 // フェーズ遷移時、持続処置を新フェーズに再適用
 function reapplyActiveTreatmentsAfterPhaseShift(){
   const list = getActiveTreatmentsList();
@@ -3145,17 +3315,71 @@ function _findHookKey(procText, hooks){
 // === hookStr / procText / 現在の rhythm からリズム変化を抽出 ===
 function _detectRhythmChange(hookStr, procText, bestKey, currentRhythm){
   const t = (hookStr||'') + ' ' + (procText||'');
-  // 除細動 by user with CPA系 rhythm の時の特殊処理
+  // === 除細動 / AED の場合：押下回数を考慮 ===
   if((bestKey === '除細動' || /除細動|AED/.test(procText||'')) &&
      (currentRhythm === 'vf' || currentRhythm === 'vt')){
-    // hook に '洞調律' / 'サイナス' / '復帰' があれば → サイナスへ
-    if(/洞調律|サイナス|復帰/.test(hookStr)) return {rhythm:'sinus', ecg:'洞調律', resumeHr:80};
-    // hook に 'PEA' があれば → PEAへ
-    if(/PEA/.test(hookStr)) return {rhythm:'pea', ecg:'PEA'};
-    // 既定: シナリオなしならとりあえずサイナス回復
-    return {rhythm:'sinus', ecg:'洞調律', resumeHr:80};
+    const count = bumpProcPressCount('除細動');
+    let recoverAt = 1;
+    let targetRhythm = 'sinus';
+    let targetEcg = '洞調律';
+    let resumeHr = 80;
+    // === 優先1: vstruct の構造化フィールド ===
+    const vs = (scenario && scenario.vstruct && scenario.vstruct[currentPhase]) || {};
+    if(vs.cpa){
+      if(vs.defibCount){
+        const n = parseInt(vs.defibCount);
+        if(!isNaN(n) && n > 0) recoverAt = n;
+      }
+      if(vs.postDefibRhythm){
+        const r = vs.postDefibRhythm;
+        if(r === 'PEA'){ targetRhythm='pea'; targetEcg='PEA'; }
+        else if(r === '心静止'){ targetRhythm='asystole'; targetEcg='心静止'; }
+        else if(r === 'VF' || r === 'Vf'){ targetRhythm='vf'; targetEcg='VF'; }
+        else if(r === '洞性徐脈'){ targetRhythm='brady'; targetEcg='洞性徐脈'; resumeHr=50; }
+        else if(r === '洞性頻脈'){ targetRhythm='tachy'; targetEcg='洞性頻脈'; resumeHr=110; }
+        else { targetRhythm='sinus'; targetEcg='洞調律'; }
+      }
+      if(vs.postDefibHr){
+        const h = parseInt(vs.postDefibHr);
+        if(!isNaN(h) && h > 0) resumeHr = h;
+      }
+    } else {
+      // === フォールバック: hook 文字列からのテキスト解析（後方互換） ===
+      let m = hookStr && hookStr.match(/(\d+)\s*回(?:目)?\s*(?:で|に)?\s*(?:洞調律|サイナス|復帰)/);
+      if(m){ recoverAt = parseInt(m[1]); }
+      else {
+        const all = [...(hookStr||'').matchAll(/(\d+)\s*回/g)].map(x=>parseInt(x[1]));
+        if(all.length) recoverAt = Math.max(...all);
+      }
+      if(/PEA/.test(hookStr||'')){ targetRhythm='pea'; targetEcg='PEA'; }
+      else if(/心静止|asystole/i.test(hookStr||'')){ targetRhythm='asystole'; targetEcg='心静止'; }
+    }
+    if(count < recoverAt){
+      if(typeof addSys === 'function'){
+        addSys('⚡ 除細動 ' + count + '回目 — ' + (currentRhythm==='vf'?'Vf':'VT') + '継続。CPR再開を。（あと ' + (recoverAt - count) + ' 回で復帰予定）');
+      }
+      if(typeof toast === 'function') toast('⚡ 除細動 ' + count + '回目（' + (currentRhythm==='vf'?'Vf':'VT') + '継続）');
+      return null;
+    }
+    // === 閾値到達：リズム変化 ===
+    procPressCounts['除細動'] = 0;
+    if(typeof addSys === 'function'){
+      const fromR = currentRhythm==='vf'?'Vf':'VT';
+      const toLbl = (targetRhythm==='sinus'||targetRhythm==='brady'||targetRhythm==='tachy') ? (targetEcg+'へ復帰') :
+                    targetRhythm==='pea' ? 'PEAへ移行' :
+                    targetRhythm==='asystole' ? '心静止へ移行' :
+                    (targetRhythm==='vf' ? 'Vf継続（除細動無効）' : targetEcg);
+      addSys('⚡ 除細動 ' + count + '回目（' + recoverAt + '回目） — ' + fromR + ' → ' + toLbl);
+    }
+    if(typeof toast === 'function') toast('✨ ' + count + '回目: ' + targetEcg);
+    const out = {rhythm: targetRhythm, ecg: targetEcg};
+    // sinus / brady / tachy 系は HR を回復させる
+    if(targetRhythm === 'sinus' || targetRhythm === 'brady' || targetRhythm === 'tachy'){
+      out.resumeHr = resumeHr;
+    }
+    return out;
   }
-  // 一般的なリズムキーワードを hookStr から拾う
+  // === 一般的なリズムキーワード抽出（除細動以外、または非 VF/VT 中） ===
   if(/心静止|asystole/i.test(hookStr)) return {rhythm:'asystole', ecg:'心静止'};
   if(/(?<![a-zA-Z無])(?:VF|Vf)(?![a-zA-Z])|心室細動/i.test(hookStr)) return {rhythm:'vf', ecg:'Vf'};
   if(/PEA/i.test(hookStr)) return {rhythm:'pea', ecg:'PEA'};
@@ -3241,17 +3465,68 @@ function applyProcedureHookToMonitor(procText){
   }
 }
 
-// === AED式 心電図解析（除細動後2分） ===
+// === AED式 心電図解析（除細動後2分）— カウントダウン表示付き ===
 let _aedAnalysisTimer = null;
+let _aedCountdownTimer = null;
+let _aedCountdownSec = 0;
+
+function _ensureAedCountdownUI(){
+  let bar = document.getElementById('aedCountdownBar');
+  if(bar) return bar;
+  bar = document.createElement('div');
+  bar.id = 'aedCountdownBar';
+  bar.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9550;display:none;'
+    + 'padding:8px 16px;background:rgba(255,77,110,0.92);color:white;font-weight:700;font-size:13px;'
+    + 'border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.4);letter-spacing:0.05em;';
+  document.body.appendChild(bar);
+  return bar;
+}
+
+function _formatMSS(sec){
+  const m = Math.floor(sec/60);
+  const s = sec % 60;
+  return m + ':' + String(s).padStart(2,'0');
+}
+
+function _updateAedCountdownBar(){
+  const bar = _ensureAedCountdownUI();
+  if(_aedCountdownSec <= 0){
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'block';
+  bar.textContent = '🩺 AED解析まで 残り ' + _formatMSS(_aedCountdownSec);
+}
+
+function _stopAedCountdown(){
+  if(_aedCountdownTimer){ clearInterval(_aedCountdownTimer); _aedCountdownTimer = null; }
+  _aedCountdownSec = 0;
+  const bar = document.getElementById('aedCountdownBar');
+  if(bar) bar.style.display = 'none';
+}
+
 function scheduleAedAnalysis(){
-  // 既に予約されていればキャンセル（連続押下の二重予約防止）
   if(_aedAnalysisTimer){ clearTimeout(_aedAnalysisTimer); _aedAnalysisTimer = null; }
+  _stopAedCountdown();
   if(typeof toast === 'function') toast('⏱ 2分後にAED心電図解析を実施します');
   if(typeof addSys === 'function') addSys('⏱ 除細動後2分タイマー開始。2分後に自動解析を行います');
+  // カウントダウン開始
+  _aedCountdownSec = 120;
+  _updateAedCountdownBar();
+  _aedCountdownTimer = setInterval(()=>{
+    _aedCountdownSec--;
+    if(_aedCountdownSec <= 0){
+      _stopAedCountdown();
+    } else {
+      _updateAedCountdownBar();
+    }
+  }, 1000);
+  // 解析タイマー
   _aedAnalysisTimer = setTimeout(()=>{
     _aedAnalysisTimer = null;
+    _stopAedCountdown();
     runAedAnalysis();
-  }, 120000); // 2分 = 120秒
+  }, 120000);
 }
 
 function runAedAnalysis(){
