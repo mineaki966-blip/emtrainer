@@ -275,6 +275,22 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
 .input-row input{flex:1;margin:0;}
 
 /* Speaking */
+.tx-chip{
+  display:inline-flex;align-items:center;
+  padding:3px 8px;margin:2px 3px;
+  background:rgba(74,154,255,0.15);
+  border:1px solid rgba(74,154,255,0.5);
+  border-radius:12px;
+  font-size:11px;font-weight:600;
+  color:#9ac8ff;
+}
+.tx-bar{
+  display:none;flex-wrap:wrap;align-items:center;gap:3px;
+  padding:6px 10px;margin:6px 0;
+  background:rgba(20,40,60,0.4);
+  border:1px solid rgba(74,154,255,0.25);
+  border-radius:8px;
+}
 .mon-pbtn{transition:transform 0.08s, background 0.15s;}
 .mon-pbtn:hover{filter:brightness(1.15);}
 .mon-pbtn:active{transform:scale(0.96);}
@@ -1125,6 +1141,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
   </div>
 
+  <!-- 持続処置チップバー（activeTreatments の表示） -->
+  <div id="activeTxBar" class="tx-bar"></div>
+
   <!-- Role selector -->
   <div class="card" style="padding:14px;">
     <div class="card-hd" style="margin-bottom:10px;"><em>👤</em>役割選択</div>
@@ -1854,6 +1873,9 @@ function startTraining(){
   // ★ボタンタップの同期コンテキスト内で音声解放
   unlockAudio();
 
+  // 持続処置のリセット
+  try{ clearActiveTreatments(); }catch(_){}
+
   chatHistory=[];
   fullLog=[];
   timerSec=0;
@@ -1980,6 +2002,8 @@ function setPhase(n){
     addSys(labels[n]);
     chatHistory=[];
   }
+  // フェーズ遷移時：持続処置をリパース→新フェーズのバイタルに再適用
+  try{ reapplyActiveTreatmentsAfterPhaseShift(); }catch(e){ console.error('reapplyTx error:', e); }
 }
 
 // ============================================================
@@ -3046,6 +3070,108 @@ function formatTime(s){
 // ============================================================
 
 // ============================================================
+// 持続処置（activeTreatments）— フェーズを跨いで継続する処置
+// ============================================================
+// カテゴリ別の現在実施中処置を保持。doProc 時に更新、setPhase 時に再適用。
+let activeTreatments = {
+  oxygen:   null,   // '酸素投与（中濃度）' / '酸素投与（高濃度）' / '補助換気'
+  airway:   null,   // '下顎挙上' / 'LT挿入' / '気管挿管' / '吸引'
+  fluid:    null,   // '輸液' / '心肺機能停止前輸液'
+  cpr:      null,   // '胸骨圧迫'
+  position: null,   // 'ショック体位' / '側臥位' / '半座位'
+};
+
+// 処置テキスト → (カテゴリ, 表示用ラベル) を判定
+function _categorizeProc(text){
+  const t = text || '';
+  // 酸素・換気
+  if(/補助換気|BVM|バッグマスク|人工換気/.test(t))      return ['oxygen', '補助換気', 'oxygen'];
+  if(/高濃度|リザーバ|10\s*L/.test(t))                  return ['oxygen', 'O2:高濃度', 'oxygen'];
+  if(/中濃度|経鼻|鼻3|3\s*L|鼻カニュ/.test(t))           return ['oxygen', 'O2:中濃度', 'oxygen'];
+  // 気道
+  if(/気管挿管|挿管/.test(t))                            return ['airway', '気管挿管', 'airway'];
+  if(/LT挿入|LT|食道閉鎖|LM/.test(t))                    return ['airway', 'LT挿入', 'airway'];
+  if(/下顎挙上|気道確保|jaw thrust/i.test(t))            return ['airway', '下顎挙上', 'airway'];
+  if(/吸引|サクション/.test(t))                          return ['airway', '吸引', 'airway'];
+  // 輸液
+  if(/心肺機能停止前輸液|前輸液/.test(t))                return ['fluid', '前輸液', 'fluid'];
+  if(/輸液|生食|静脈路|末梢確保/.test(t))                return ['fluid', '輸液', 'fluid'];
+  // CPR
+  if(/胸骨圧迫|CPR|心マ/i.test(t))                       return ['cpr', 'CPR', 'cpr'];
+  // 体位
+  if(/ショック体位|下肢挙上/.test(t))                    return ['position', 'ショック体位', 'position'];
+  if(/側臥位|回復体位/.test(t))                          return ['position', '側臥位', 'position'];
+  if(/半座位|ファーラー/.test(t))                        return ['position', '半座位', 'position'];
+  // その他（除細動・アドレナリン・血糖測定は一回性イベント）
+  return [null, null, null];
+}
+
+// 持続処置のリストを {label, category}[] で返す
+function getActiveTreatmentsList(){
+  const list = [];
+  for(const [cat, label] of Object.entries(activeTreatments)){
+    if(label) list.push({category: cat, label: label});
+  }
+  return list;
+}
+
+// 持続処置を文字列化（プロンプト注入用）
+function getActiveTreatmentsText(){
+  const list = getActiveTreatmentsList();
+  if(!list.length) return '';
+  return list.map(x => x.label).join(' / ');
+}
+
+// 持続処置チップを画面に表示
+function renderActiveTreatmentsBar(){
+  const bar = document.getElementById('activeTxBar');
+  if(!bar) return;
+  const list = getActiveTreatmentsList();
+  if(!list.length){
+    bar.style.display = 'none';
+    return;
+  }
+  const icons = {oxygen:'🫁', airway:'🌬', fluid:'💧', cpr:'🫀', position:'🛏'};
+  bar.innerHTML = '<span style="font-size:10px;color:#7a9aba;margin-right:4px;">持続中:</span>' +
+    list.map(x => '<span class="tx-chip">' + (icons[x.category]||'⚕') + ' ' + x.label + '</span>').join('');
+  bar.style.display = 'flex';
+}
+
+// 処置テキストから activeTreatments を更新
+function updateActiveTreatments(procText){
+  const [cat, label] = _categorizeProc(procText);
+  if(!cat) return null;  // 一回性イベント（除細動・アドレナリン等）
+  const prev = activeTreatments[cat];
+  activeTreatments[cat] = label;
+  renderActiveTreatmentsBar();
+  if(prev && prev !== label){
+    if(typeof toast === 'function') toast('🔁 ' + cat + ': ' + prev + ' → ' + label);
+  }
+  return {category: cat, label: label, prev: prev};
+}
+
+// 持続処置をクリア（訓練開始時など）
+function clearActiveTreatments(){
+  activeTreatments = { oxygen:null, airway:null, fluid:null, cpr:null, position:null };
+  renderActiveTreatmentsBar();
+}
+
+// フェーズ遷移時、持続処置を新フェーズに再適用
+function reapplyActiveTreatmentsAfterPhaseShift(){
+  const list = getActiveTreatmentsList();
+  if(!list.length) return;
+  if(typeof addSys === 'function'){
+    addSys('🔁 持続処置を引き継ぎ: ' + list.map(x=>x.label).join('、'));
+  }
+  // 順番に再適用（バイタルへ反映）
+  list.forEach((x, i)=>{
+    setTimeout(()=>{
+      try{ applyProcedureHookToMonitor(x.label); }catch(e){}
+    }, 200 + i*150);
+  });
+}
+
+// ============================================================
 // 処置選択（処置反応モード時にボタンで送信）
 // ============================================================
 function doProc(text){
@@ -3057,6 +3183,8 @@ function doProc(text){
   setTimeout(()=>{ try{ send(); }catch(_){} }, 100);
   // 処置トリガによるフェーズ自動遷移をチェック
   try{ checkPhaseAdvanceTrigger(text); }catch(e){ console.error('phaseAdvance error:', e); }
+  // 持続処置のカテゴリを更新（フェーズ跨いで保持）
+  try{ updateActiveTreatments(text); }catch(e){ console.error('activeTx error:', e); }
   // 処置別 procedureHooks に書かれた目標値へ滑らかに反映
   try{ applyProcedureHookToMonitor(text); }catch(e){ console.error('procHookApply error:', e); }
 }
@@ -3372,7 +3500,7 @@ function buildSystemPrompt(role, phase){
 患者：${scenario.age} ${scenario.sex}　主訴：${scenario.chief}
 現場：${scenario.scene}
 現在フェーズ：${phaseLabels[phase]||''}
-${scenario.dynamicScript ? '\n【シナリオ動的振舞いルール（あなたの応答指針）】' + scenario.dynamicScript + '\n' : ''}${(scenario.procedureHooks && Object.keys(scenario.procedureHooks).length) ? ('\n【処置別の標準応答（処置反応役は厳密に従うこと）】\n' + Object.entries(scenario.procedureHooks).map(([k,v])=>'・'+k+' → '+v).join('\n') + '\n') : ''}`;
+${scenario.dynamicScript ? '\n【シナリオ動的振舞いルール（あなたの応答指針）】' + scenario.dynamicScript + '\n' : ''}${(scenario.procedureHooks && Object.keys(scenario.procedureHooks).length) ? ('\n【処置別の標準応答（処置反応役は厳密に従うこと）】\n' + Object.entries(scenario.procedureHooks).map(([k,v])=>'・'+k+' → '+v).join('\n') + '\n') : ''}${(()=>{ const tx = getActiveTreatmentsText(); return tx ? ('\n【現在実施中の持続処置（応答時に必ず考慮すること）】\n・' + tx + '\n→ これらの処置による効果は継続中。患者の状態・反応はこれを踏まえて答える。\n') : ''; })()}`;
 
   const rolePrompts = {
     patient: `あなたは救急訓練シミュレーションの患者役です。
