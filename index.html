@@ -1107,33 +1107,59 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <!-- Hidden rhythm holders（互換：表示はしない） -->
       <span style="display:none;" id="mv_ecg">--</span>
       <span style="display:none;" id="mv_gcs">--</span>
-      <!-- 処置欄（モニター直結。押下で applyProcedureHookToMonitor が走り、バイタルが滑らかにトゥイーン） -->
+      <!-- 処置欄（通常/CPRモード切替） -->
       <div style="padding:10px 12px;background:#0a1f15;border-top:1px solid #0f3020;">
-        <div style="font-size:11px;color:#5a9a7a;letter-spacing:0.08em;margin-bottom:6px;">⚕ モニター連動 処置</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <button class="mon-pbtn" onclick="doProc('酸素投与（経鼻カニューレ・中濃度 鼻3L/分）')"
+        <div style="font-size:11px;color:#5a9a7a;letter-spacing:0.08em;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+          <span>⚕ モニター連動 処置</span>
+          <span id="cprModeBadge" style="display:none;background:#ff4d6e;color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;">CPRモード</span>
+        </div>
+        <div id="monProcGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <!-- 通常モード -->
+          <button class="mon-pbtn" data-procmode="normal" onclick="doProc('酸素投与（経鼻カニューレ・中濃度 鼻3L/分）')"
             style="padding:14px 10px;border-radius:8px;border:1px solid #4a9aff;background:rgba(74,154,255,0.13);color:#9ac8ff;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
             🫁 O2 中濃度<br><span style="font-size:10px;color:#7a9aca;">経鼻3L/分</span>
           </button>
-          <button class="mon-pbtn" onclick="doProc('酸素投与（リザーバマスク・高濃度 10L/分）')"
+          <button class="mon-pbtn" data-procmode="normal" onclick="doProc('酸素投与（リザーバマスク・高濃度 10L/分）')"
             style="padding:14px 10px;border-radius:8px;border:1px solid #4ad0ff;background:rgba(74,208,255,0.16);color:#9ae0ff;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
             🫁 O2 高濃度<br><span style="font-size:10px;color:#7ac0e0;">リザーバ10L/分</span>
           </button>
-          <button class="mon-pbtn" onclick="doProc('補助換気（BVM）開始')"
+          <button class="mon-pbtn" data-procmode="normal" onclick="doProc('補助換気（BVM）開始')"
             style="padding:14px 10px;border-radius:8px;border:1px solid #66e0a0;background:rgba(102,224,160,0.16);color:#a0f0c8;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
             💨 補助換気<br><span style="font-size:10px;color:#80c8a0;">BVM</span>
           </button>
-          <button class="mon-pbtn" onclick="doProc('胸骨圧迫開始（CPR）')"
+          <button class="mon-pbtn" data-procmode="both" id="cprBtn" onclick="onCprButtonPress()"
             style="padding:14px 10px;border-radius:8px;border:1px solid #ffaa55;background:rgba(255,170,85,0.16);color:#ffd0a0;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
             🫀 CPR<br><span style="font-size:10px;color:#d0a070;">胸骨圧迫</span>
           </button>
-          <button class="mon-pbtn" onclick="doProc('AED/除細動を実施')"
-            style="padding:14px 10px;border-radius:8px;border:1px solid #ff4d6e;background:rgba(255,77,110,0.16);color:#ffaab8;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
-            ⚡ 除細動<br><span style="font-size:10px;color:#d08090;">AED/手動</span>
+          <button class="mon-pbtn" data-procmode="normal" onclick="doProc('心肺機能停止前輸液（生理食塩水 急速投与）')"
+            style="padding:14px 10px;border-radius:8px;border:1px solid #6acff0;background:rgba(106,207,240,0.13);color:#a0d8f0;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            💧 前輸液<br><span style="font-size:10px;color:#7aaac0;">心肺停止前</span>
           </button>
-          <button class="mon-pbtn" onclick="doProc('アドレナリン1mg静注（CPA症例）')"
-            style="padding:14px 10px;border-radius:8px;border:1px solid #ff5050;background:rgba(255,80,80,0.18);color:#ffb0b0;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+          <button class="mon-pbtn" data-procmode="normal" onclick="doProc('ブドウ糖50%静注')"
+            style="padding:14px 10px;border-radius:8px;border:1px solid #f0c050;background:rgba(240,192,80,0.15);color:#ffe0a0;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            🍬 ブドウ糖<br><span style="font-size:10px;color:#caa570;">50% 40mL</span>
+          </button>
+          <!-- CPRモード（初期非表示） -->
+          <button class="mon-pbtn" data-procmode="cpr" id="defibBtn" onclick="doProc('AED/除細動を実施')"
+            style="display:none;padding:14px 10px;border-radius:8px;border:1px solid #ff4d6e;background:rgba(255,77,110,0.16);color:#ffaab8;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;position:relative;">
+            ⚡ 除細動<br><span style="font-size:10px;color:#d08090;">AED/手動</span>
+            <span id="defibCountdownBadge" style="display:none;position:absolute;top:2px;right:6px;background:#ff4d6e;color:white;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:700;">--:--</span>
+          </button>
+          <button class="mon-pbtn" data-procmode="cpr" onclick="doProc('アドレナリン1mg静注（CPA症例）')"
+            style="display:none;padding:14px 10px;border-radius:8px;border:1px solid #ff5050;background:rgba(255,80,80,0.18);color:#ffb0b0;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
             💉 アドレナリン<br><span style="font-size:10px;color:#d08585;">1mg 静注</span>
+          </button>
+          <button class="mon-pbtn" data-procmode="cpr" onclick="doProc('静脈路確保（末梢ライン）')"
+            style="display:none;padding:14px 10px;border-radius:8px;border:1px solid #88c8ff;background:rgba(136,200,255,0.15);color:#b0d8ff;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            💉 静脈路確保<br><span style="font-size:10px;color:#90a8c0;">末梢ライン</span>
+          </button>
+          <button class="mon-pbtn" data-procmode="cpr" onclick="doProc('LT挿入（食道閉鎖式エアウェイ）')"
+            style="display:none;padding:14px 10px;border-radius:8px;border:1px solid #aaccff;background:rgba(170,204,255,0.15);color:#c8d8ff;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            🌬 LT挿入<br><span style="font-size:10px;color:#a8b8d0;">食道閉鎖式</span>
+          </button>
+          <button class="mon-pbtn" data-procmode="cpr" onclick="doProc('気管挿管')"
+            style="display:none;padding:14px 10px;border-radius:8px;border:1px solid #c8aaff;background:rgba(200,170,255,0.15);color:#d8c0ff;font-weight:700;cursor:pointer;font-size:14px;line-height:1.2;">
+            🌬 気管挿管<br><span style="font-size:10px;color:#b0a0d0;">経口挿管</span>
           </button>
         </div>
         <button id="alarmSilenceBtn" class="btn btn-block" onclick="silenceCpaAlarm()"
@@ -2128,16 +2154,24 @@ function showMonitor(){
   };
   updateClock();
   setInterval(updateClock, 1000);
-  // バイタルをシナリオから自動パース試行
-  if(scenario){
-    parseVitalsFromScenario();
-  } else {
-    // シナリオ未設定: 初期状態（rhythm=sinus）を明示
+  // ※ monitorData は startTraining/setPhase で既に投入済なので再パースしない
+  // （再パースすると除細動後の rhythm 変化が破棄されてしまうため）
+  if(!scenario && (monitorData.rhythm === undefined || monitorData.ecg === '--')){
     monitorData.rhythm = 'sinus';
     monitorData.ecg = '--';
   }
   renderMonitorValues();
   startEcgAnimation();
+  // モニター開時：CPAリズムなら自動でCPRモード
+  try{
+    const r = monitorData && monitorData.rhythm;
+    if(r === 'vf' || r === 'vt' || r === 'pea' || r === 'asystole'){
+      monProcMode = 'cpr';
+    } else {
+      monProcMode = 'normal';
+    }
+    applyCprModeUI();
+  }catch(_){}
   // ※ モニター画面ではリズム音・CPAサイレンは鳴らさない（ユーザー要望）
   // 既存音が動いていれば停止しておく
   try{ stopMonitorBeep && stopMonitorBeep(); }catch(_){}
@@ -2972,7 +3006,19 @@ async function stopCallAndAsk(){
     composite += '\n\n【特定行為の指示要請（救急隊から）】\n' + tkList.map(t => '・' + t).join('\n');
   }
   try{
-    const reply = await callAI(sys, [{role:'user', content:composite}]);
+    // 1回目: maxTokens=350 で要請（出力短縮）
+    let reply = await callAI(sys, [{role:'user', content:composite}], 350);
+    // 空応答チェック（空文字 / 極端に短い等）→ 一度だけリトライ
+    const _trim = (reply||'').trim();
+    if(!_trim || _trim.length < 4){
+      if(typeof addSys === 'function') addSys('⚠ 応答が空でした。簡略プロンプトで再試行します...');
+      const fallbackSys = sys + '\n\n【再要請】前回応答が空でした。**最低1文**は必ず返してください（受入可否＋特定行為判定）。';
+      reply = await callAI(fallbackSys, [{role:'user', content:composite}], 350);
+      if(!(reply||'').trim()){
+        // 2回目も空 → 静的フォールバック
+        reply = '（医師：応答が得られませんでした。再度通話してください。）';
+      }
+    }
     document.getElementById('callStateLine').textContent = '✅ 医師の回答（' + dept.name + '）';
     const box = document.getElementById('callReplyBox');
     box.style.display = 'block';
@@ -2981,6 +3027,12 @@ async function stopCallAndAsk(){
     try{ maybeAlertOnReply(reply); }catch(_){}
     speakQueued(reply, 'hospital');
   }catch(e){
+    const box = document.getElementById('callReplyBox');
+    box.style.display = 'block';
+    box.textContent = '❌ 通信エラー: ' + e.message + '\n→ ネットワークまたはAPI設定をご確認ください。';
+    box.style.background = 'rgba(255,77,110,0.10)';
+    box.style.borderColor = '#ff4d6e';
+    box.style.color = '#ffaabb';
     document.getElementById('callStateLine').textContent = '❌ エラー: ' + e.message;
   }
 }
@@ -2993,40 +3045,30 @@ function buildHospitalCallPrompt(dept){
 現場：${scenario.scene}
 現在フェーズ：${phaseLabels[currentPhase]||''}
 ` : '';
-  return `あなたは「${dept.name}」の当直医師です。救急隊から受け入れ要請の電話を受けています。
-${baseInfo}
-【あなたの担当領域】
-${dept.scope}
+  return `あなたは「${dept.name}」の当直医師。救急隊からの受入要請電話に**極めて簡潔**に答える。
 
-【最重要ルール — 必ずこの順で判定】
-1) **科目ミスマッチ判定**：救急隊が伝えた主訴・病態が、明らかに当科（${dept.name}）の対象外である場合：
-   「申し訳ありません、当院の${dept.name}では対応困難です。○○科をご検討ください。」と1〜2文で**断る**。
-   （例：心筋梗塞 → 整形外科にかかってきた → 拒否）
-   ただし「救急科」は基本的に救急全般を受け入れるため、明らかな単科専門以外は受入対象。
+${baseInfo}【担当領域】${dept.scope}
 
-2) **情報不足判定**：科目は適切だが、判断に必要な情報（年齢／主訴／バイタル／意識／処置内容／到着予定時刻 等）が不足している場合：
-   不足項目を**1つだけ**短く聞き返す（例：「バイタルを教えてください」「意識レベルは？」）。
+【判定の順番】
+A) **科目不適合**: 主訴が明らかに当科外 → 「申し訳ない、当${dept.name}では対応困難。○○科を検討ください。」（救急科は救急全般可）
+B) **情報不足**: 判断に必要な項目（年齢/バイタル/意識/処置/到着時間）が欠けていれば、**1つだけ**短く聞き返す。
+C) **受入可**: 情報十分なら「受入可。○分後到着で。」と1文だけ。
 
-3) **受け入れ承諾**：科目が適切で情報も揃っている場合：
-   「受け入れ可能です。○○分後に到着でよろしいですね。」と簡潔に承諾。
+【特定行為の指示判定（メッセージに項目があれば必ず判定）】
+各行為につき**1行のみ**で返す。形式：「・行為名 → 指示／不可（理由10字以内）」
+判定基準（簡潔版）：
+・心肺機能停止前輸液：sBP≤90 or ショック徴候 + 末梢確保可能 → 指示
+・心肺停止傷病者への輸液：CPAなら指示
+・LT/LM挿入：JCS300+BVM困難/嘔吐リスク → 指示
+・気管挿管：JCS300+換気困難 → 認定救命士なら指示
+・アドレナリン：CPA + (VF/無脈性VT/PEA/目撃あり心静止) → 指示
+・ブドウ糖：血糖<50mg/dL確定 → 指示
 
-4) **特定行為の指示判定**（メッセージに「特定行為の指示要請」項目が含まれる場合）：
-   各特定行為について、患者の現在の病態と適応条件を照らして「指示」または「指示しない」を判定し、簡潔に伝える。
-   主な判定基準：
-   ・**心肺機能停止前輸液**：ショック（収縮期90mmHg以下 or ショック徴候）であり末梢確保が可能なら指示
-   ・**心肺停止傷病者への輸液**：CPAであり静脈路必要時は指示。原因検索や薬剤投与経路として有用
-   ・**LT/LM挿入**：意識消失（JCS300相当）かつBVM換気困難・嘔吐リスク等で指示
-   ・**気管挿管**：原則として認定救急救命士のみ。意識消失＋換気困難で指示（事業者の認定状況にも依る）
-   ・**アドレナリン投与**：心肺停止であり、心電図波形が **VF・無脈性VT・PEA・目撃ありの心静止**のいずれかである場合に指示（目撃なしの心静止は対象外）
-   ・**ブドウ糖投与**：血糖測定で **50mg/dL未満**の低血糖が確定している場合に指示
-   応答例：「心肺機能停止前輸液は指示します。LT挿入は意識保たれているため不要、まず気道確保で。」
-   不適応の場合は理由を1文で。
-
-【回答スタイル】
-・1〜2文（特定行為が複数なら箇条書きで簡潔に）。実際の受入医師のように落ち着いた口調。
-・前置き・冗長な説明は不要。
-・特定行為の指示要請があれば、受け入れ判断と特定行為判定の**両方**を必ず回答する。
-・自分から余計な情報や指示は出さない。`;
+【絶対ルール】
+- 全体で**最大80文字**（特定行為あり時は各1行ずつ+受入判断1行）
+- 前置き・お疲れ様等の挨拶禁止
+- 受入判断 と 特定行為判定 の**両方**を必ず返す（特定行為要請あり時）
+- 「では失礼します」等の締めも禁止`;
 }
 
 // ============================================================
@@ -3247,18 +3289,77 @@ function reapplyActiveTreatmentsAfterPhaseShift(){
 // ============================================================
 // 処置選択（処置反応モード時にボタンで送信）
 // ============================================================
+// 波形名 → 読み上げ用ラベル
+const RHYTHM_LABELS = {
+  sinus: '洞調律', tachy: '洞性頻脈', brady: '洞性徐脈',
+  afib: '心房細動', vf: 'VF', vt: 'VT', pea: 'PEA', asystole: '心静止'
+};
+
+// === モニター処置欄: 通常/CPRモード切替 ===
+let monProcMode = 'normal'; // 'normal' / 'cpr'
+function setMonProcMode(mode){
+  monProcMode = (mode === 'cpr') ? 'cpr' : 'normal';
+  applyCprModeUI();
+}
+function applyCprModeUI(){
+  document.querySelectorAll('#monProcGrid button[data-procmode]').forEach(b=>{
+    const m = b.dataset.procmode;
+    if(m === 'both') b.style.display = '';
+    else if(m === 'normal') b.style.display = (monProcMode==='cpr') ? 'none' : '';
+    else if(m === 'cpr')    b.style.display = (monProcMode==='cpr') ? '' : 'none';
+  });
+  const badge = document.getElementById('cprModeBadge');
+  if(badge) badge.style.display = (monProcMode==='cpr') ? 'inline-block' : 'none';
+  // CPRボタンの表示更新
+  const cpr = document.getElementById('cprBtn');
+  if(cpr){
+    cpr.innerHTML = (monProcMode==='cpr')
+      ? '🛑 CPR解除<br><span style="font-size:10px;color:#d0a070;">通常モードへ</span>'
+      : '🫀 CPR<br><span style="font-size:10px;color:#d0a070;">胸骨圧迫</span>';
+  }
+}
+
+// CPRボタン押下時: トグルで CPR モード切替＋通常の処置反映
+function onCprButtonPress(){
+  if(monProcMode === 'cpr'){
+    setMonProcMode('normal');
+    if(typeof toast === 'function') toast('🛑 CPR解除 → 通常モード');
+    if(typeof addSys === 'function') addSys('🛑 CPR解除：通常処置モードへ戻りました');
+  } else {
+    setMonProcMode('cpr');
+    if(typeof toast === 'function') toast('🫀 CPRモード開始');
+    if(typeof addSys === 'function') addSys('🫀 CPRモード開始：胸骨圧迫を継続してください');
+    doProc('胸骨圧迫開始（CPR）');
+  }
+}
+
 function doProc(text){
   if(!text) return;
+  // === 除細動系: AI送信せず、deterministic logic + 短い音声のみ ===
+  const isDefib = /除細動|AED/.test(text);
+  if(isDefib){
+    // 持続処置（除細動は一回性なので skip）と AED 解析予約のため
+    // applyProcedureHookToMonitor を直接呼び出す
+    try{ applyProcedureHookToMonitor(text); }catch(e){ console.error('procHookApply error:', e); }
+    // 結果のリズムを 500ms後（トゥイーン開始後）に音声でアナウンス
+    setTimeout(()=>{
+      const r = monitorData && monitorData.rhythm;
+      const name = RHYTHM_LABELS[r] || r || 'リズム不明';
+      try{ speak(name + 'です。', 'response'); }catch(_){}
+      if(typeof addSys === 'function') addSys('🩺 現在のリズム: ' + name);
+    }, 600);
+    // 持続処置カテゴリは除細動は対象外（事象）
+    try{ updateActiveTreatments(text); }catch(_){}
+    return;
+  }
+  // === 通常の処置: AI送信 + バイタル反映 ===
   if(currentRole !== 'response'){
     selRole('response');
   }
   document.getElementById('txtIn').value = text + '。患者の反応・バイタル変化を教えてください。';
   setTimeout(()=>{ try{ send(); }catch(_){} }, 100);
-  // 処置トリガによるフェーズ自動遷移をチェック
   try{ checkPhaseAdvanceTrigger(text); }catch(e){ console.error('phaseAdvance error:', e); }
-  // 持続処置のカテゴリを更新（フェーズ跨いで保持）
   try{ updateActiveTreatments(text); }catch(e){ console.error('activeTx error:', e); }
-  // 処置別 procedureHooks に書かれた目標値へ滑らかに反映
   try{ applyProcedureHookToMonitor(text); }catch(e){ console.error('procHookApply error:', e); }
 }
 
@@ -3452,17 +3553,25 @@ function applyProcedureHookToMonitor(procText){
     const def = _defaultEffectFor(bestKey, procText);
     Object.assign(targets, def);
   }
-  if(Object.keys(targets).length === 0 && !rChange) return;
+  // === AED式解析: 除細動押下なら、リズム変化の有無に関わらず2分タイマー予約 ===
+  // （早期returnの前に呼ぶことで、VF継続(1,2回目)でもタイマーが作動する）
+  const isDefib = (bestKey === '除細動' || /除細動|AED/.test(procText||''));
+  if(isDefib){
+    scheduleAedAnalysis();
+  }
+  if(Object.keys(targets).length === 0 && !rChange){
+    // リズム変化も数値変化も無い場合でも除細動なら label トーストは出す
+    if(isDefib && typeof toast === 'function'){
+      toast('⚡ 除細動実施（VF継続中）');
+    }
+    return;
+  }
   // === 数秒かけて滑らかにトゥイーン ===
   if(Object.keys(targets).length > 0){
     smoothTweenMonitor(targets, 3500);
   }
   const label = bestKey || (procText||'').slice(0, 16);
   if(typeof toast === 'function') toast('🔄 処置反映: ' + label + ' → モニター更新');
-  // AED式解析：除細動押下時に2分後の自動解析を予約
-  if(bestKey === '除細動' || /除細動|AED/.test(procText||'')){
-    scheduleAedAnalysis();
-  }
 }
 
 // === AED式 心電図解析（除細動後2分）— カウントダウン表示付き ===
@@ -3490,12 +3599,18 @@ function _formatMSS(sec){
 
 function _updateAedCountdownBar(){
   const bar = _ensureAedCountdownUI();
+  const badge = document.getElementById('defibCountdownBadge');
   if(_aedCountdownSec <= 0){
     bar.style.display = 'none';
+    if(badge) badge.style.display = 'none';
     return;
   }
   bar.style.display = 'block';
   bar.textContent = '🩺 AED解析まで 残り ' + _formatMSS(_aedCountdownSec);
+  if(badge){
+    badge.style.display = 'block';
+    badge.textContent = _formatMSS(_aedCountdownSec);
+  }
 }
 
 function _stopAedCountdown(){
@@ -3503,6 +3618,8 @@ function _stopAedCountdown(){
   _aedCountdownSec = 0;
   const bar = document.getElementById('aedCountdownBar');
   if(bar) bar.style.display = 'none';
+  const badge = document.getElementById('defibCountdownBadge');
+  if(badge) badge.style.display = 'none';
 }
 
 function scheduleAedAnalysis(){
@@ -3865,7 +3982,12 @@ function isQuotaError(msg){
   const s = String(msg).toLowerCase();
   return s.includes('quota') || s.includes('resource_exhausted')
       || s.includes('rate limit') || s.includes('429')
-      || s.includes('insufficient_quota') || s.includes('too many requests');
+      || s.includes('insufficient_quota') || s.includes('too many requests')
+      // Groq / OpenAI のサイズ超過もフォールバック対象として扱う
+      || s.includes('request too large') || s.includes('tokens per minute')
+      || s.includes('tpm') || s.includes('reduce your message')
+      || s.includes('context length') || s.includes('maximum context')
+      || s.includes('413');
 }
 
 async function callGemini(systemPrompt, messages, keyOverride, maxTokens){
@@ -4247,8 +4369,26 @@ async function getDoctorFB(){
   wrap.style.display='block';
   box.textContent='医師フィードバック生成中...';
 
-  // Compile full activity log
-  const logText = fullLog.map(l=>`[${l.phase||''}][${l.role}] Q:${l.query||''} A:${l.text}`).join('\n');
+  // === 活動ログを切り詰め：最新40件まで（古い分はサマリ化） ===
+  const MAX_LOG_ENTRIES = 40;
+  let logEntries = fullLog.slice();
+  let omittedCount = 0;
+  if(logEntries.length > MAX_LOG_ENTRIES){
+    omittedCount = logEntries.length - MAX_LOG_ENTRIES;
+    logEntries = logEntries.slice(-MAX_LOG_ENTRIES);
+  }
+  // 各エントリの内容も A:本文 で長すぎる場合は切る（300文字以内）
+  const logText = (omittedCount > 0 ? ('（古い' + omittedCount + '件は省略）\n') : '')
+    + logEntries.map(l => {
+        const a = (l.text||'').substring(0,300);
+        const q = (l.query||'').substring(0,80);
+        return '[' + (l.phase||'') + '][' + l.role + '] Q:' + q + ' A:' + a;
+      }).join('\n');
+
+  // === Groq使用時の警告（プロアクティブにフォールバック誘導） ===
+  if(getProvider() === 'groq'){
+    addSys('⚠ Groq無料枠はTPM制限が小さいため、医師FBは長文プロンプトでエラーになりやすいです。失敗時は自動的に他のプロバイダへ切替えます。');
+  }
 
   const sys=`あなたは救急医療・病院前救護の専門医・指導医（中播磨・西播磨地域 MC協議会指示医師相当）です。
 以下の救急訓練の活動ログを、添付の【参照プロトコル】に照らして詳細な医学的フィードバックを行ってください。
@@ -4257,7 +4397,14 @@ async function getDoctorFB(){
 【症例タイプ】${({trauma:'外傷',cardiac:'心疾患',stroke:'脳卒中',other:'その他'})[scenario?.type]||'その他'}
 【総活動時間】${document.getElementById('totalTime').textContent}
 
-${(()=>{ const _p = (typeof getProtocolText==='function') ? getProtocolText() : ''; return _p ? ('【参照プロトコル — 中・西播磨MC協議会 R7.5改正『救急活動プロトコル』】\n' + _p + '\n【／参照プロトコル】') : '【参照プロトコル — 未設定】（プロトコル本文が読込まれていないため、一般的な救急医療指針に基づいて評価します）'; })()}
+${(()=>{
+  const _p = (typeof getProtocolText==='function') ? getProtocolText() : '';
+  if(!_p) return '【参照プロトコル — 未設定】（プロトコル本文が読込まれていないため、一般的な救急医療指針に基づいて評価します）';
+  // プロトコルは最大8000文字に切り詰め（Groq TPM 6000対策）
+  const MAX_PROTO = 8000;
+  const truncated = _p.length > MAX_PROTO ? _p.substring(0, MAX_PROTO) + '\n…（以降' + (_p.length - MAX_PROTO) + '文字省略）' : _p;
+  return '【参照プロトコル — 中・西播磨MC協議会 R7.5改正『救急活動プロトコル』】\n' + truncated + '\n【／参照プロトコル】';
+})()}
 ${(scenario && scenario.trainingPoints && scenario.trainingPoints.length) ? ('\n【このシナリオの訓練評価ポイント（必ず項目別に評価すること）】\n' + scenario.trainingPoints.map((p,i)=>(i+1)+'. '+p).join('\n') + '\n') : ''}
 
 フィードバックは以下の構成で記述してください：
