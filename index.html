@@ -2162,14 +2162,10 @@ function showMonitor(){
   }
   renderMonitorValues();
   startEcgAnimation();
-  // モニター開時：CPAリズムなら自動でCPRモード
+  // モニター開時：CPRモードは自動で切り替えない。
+  // CPAリズムでも、CPRボタンを押すまでは通常モード（心肺停止前輸液・ブドウ糖を表示）。
+  // ※ 既にCPRボタンでCPRモードにしている場合は、その状態をそのまま維持する。
   try{
-    const r = monitorData && monitorData.rhythm;
-    if(r === 'vf' || r === 'vt' || r === 'pea' || r === 'asystole'){
-      monProcMode = 'cpr';
-    } else {
-      monProcMode = 'normal';
-    }
     applyCprModeUI();
   }catch(_){}
   // ※ モニター画面ではリズム音・CPAサイレンは鳴らさない（ユーザー要望）
