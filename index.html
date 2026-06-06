@@ -1272,6 +1272,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <input type="checkbox" id="autoRoleSwitch" checked style="width:auto;margin:0;" onchange="localStorage.setItem('emAutoRole', this.checked?'1':'0')">
       キーワードで役割を自動切替
     </label>
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;margin:0;" title="iOS Safari等でブラウザの音声認識が動かない場合に有効化。Groq APIキー（無料）が必要。録音→無音検出で自動的に文字起こし送信。">
+      <input type="checkbox" id="cloudSttMode" style="width:auto;margin:0;" onchange="onCloudSttToggle(this.checked)">
+      ☁ クラウド音声認識を使う（iOS推奨／Groqキー必要）
+    </label>
   </div>
 
   <!-- Wake word settings -->
@@ -1445,6 +1449,18 @@ window.onload = () => {
     const ar = document.getElementById('autoRoleSwitch');
     if(nw) nw.checked = (localStorage.getItem('emNoWake') !== '0');
     if(ar) ar.checked = (localStorage.getItem('emAutoRole') !== '0');
+    // クラウド音声認識モードの復元（保存済みならその値、未保存ならiOS=ON / 他=OFF）
+    const cs = document.getElementById('cloudSttMode');
+    if(cs){
+      const stored = localStorage.getItem('emCloudStt');
+      if(stored !== null){
+        cs.checked = (stored === '1');
+      } else {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
+        cs.checked = isIOS;
+        localStorage.setItem('emCloudStt', isIOS ? '1' : '0');
+      }
+    }
   }catch(_){}
   const rs=document.getElementById('s_disprate');
   if(rs) rs.addEventListener('input',()=>{ document.getElementById('s_disprateVal').textContent=rs.value; });
@@ -4561,8 +4577,15 @@ function toggleAlwaysOn(){
 }
 
 function startAlwaysOn(){
+  // クラウドSTTモードが有効ならMediaRecorder+Whisperで動かす（iOS対応）
+  if(typeof isCloudSttEnabled === 'function' && isCloudSttEnabled()){
+    alwaysOn = true;
+    setAonToggle(true);
+    startCloudSTT();
+    return;
+  }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ toast('このブラウザは音声認識に対応していません'); return; }
+  if(!SR){ toast('このブラウザは音声認識に未対応。「☁ クラウド音声認識を使う」を有効にしてください'); return; }
   alwaysOn = true;
   setAonToggle(true);
   aonLoop(); // 再起動ループ開始
@@ -4601,79 +4624,7 @@ function aonLoop(){
       }
       if(interim) setAonText('🎤 ' + interim);
       if(!final) return;
-      final = fixHomophones(final);
-      setAonText(final);
-      const trimmed = final.trim();
-      if(!trimmed) return;
-      if(isSpeaking) return;
-
-      // ① 終了コマンド
-      if(/(天の声|てんのこえ|テンノコエ).{0,4}終了|会話\s*停止/.test(trimmed)){
-        aonGate = false;
-        aonGateRole = null;
-        if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(false);
-        try{ playTenChime(false); }catch(_){}
-        addSys('🔚 天の声 OFF（待機モードへ戻りました）');
-        setAonState('listening');
-        setAonText('待機中... 「天の声、〇〇」と話してください');
-        toast('🔇 天の声を終了');
-        return;
-      }
-
-      // ② 天の声ウェイクワード
-      const tenRe = /(天の声|てんのこえ|テンノコエ)/;
-      const hasTen = tenRe.test(trimmed);
-      if(hasTen){
-        let newRole = null;
-        if(/家族|目撃/.test(trimmed)) newRole = 'family';
-        else if(/本人|患者/.test(trimmed)) newRole = 'patient';
-        else if(/病院|交渉|搬送先|受け入れ/.test(trimmed)) newRole = 'hospital';
-        else if(/医師|医者|ドクター/.test(trimmed)) newRole = 'doctor';
-        else if(/バイタル|血圧|脈拍|心拍|spo2|spо2|呼吸数|gcs|意識レベル|体温|測定/i.test(trimmed)) newRole = 'vital';
-
-        if(newRole){
-          aonGate = true;
-          aonGateRole = newRole;
-          if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(true);
-          try{ playTenChime(true); }catch(_){}
-          if(newRole !== currentRole){ selRole(newRole); }
-          addSys('🎯 天の声 ON：' + roleLabels[newRole]);
-
-          // 病院モードは専用の通話画面で操作する（自動送信しない）
-          if(newRole === 'hospital'){
-            setAonText('📞 病院交渉画面を開きました — 科目選択→通話開始へ');
-            return;
-          }
-
-          // 役割切替後は自動送信せず、明示的な質問が来るまで待機する
-          // （天の声に続く修飾語が誤って症状照会として送信されるのを防ぐ）
-          aonGateQuietUntil = Date.now() + 4000;  // 4秒間は誤反応抑制
-          setAonState('wake-detected');
-          setAonText('🟢 ' + roleLabels[newRole] + ' モード — ご質問をどうぞ（自動応答はしません）');
-          return;
-        }
-        setAonText('「天の声、家族／本人／バイタル／病院」と続けてください');
-        return;
-      }
-
-      // ③ ゲートが閉じている → 隊員同士の雑談 → 無視
-      if(!aonGate){
-        setAonText('（天の声以外は無視中）: ' + trimmed.slice(0,30));
-        return;
-      }
-
-      // ④ ゲートON：継続会話として送信
-      if(trimmed.length < 2) return;
-      // 役割切替直後はノイズ・残響による誤送信を防ぐ
-      if(Date.now() < aonGateQuietUntil){
-        setAonText('（切替直後の待機中… ご質問をお待ちしています）');
-        return;
-      }
-      setAonState('wake-detected');
-      setAonText('送信: "' + trimmed + '"');
-      unlockAudio();
-      document.getElementById('txtIn').value = trimmed;
-      setTimeout(()=>{ send(); }, 200);
+      processVoiceTranscript(final);
     };
 
     aonRecog.onerror = e=>{
@@ -4714,11 +4665,278 @@ function stopAlwaysOn(){
   aonGateRole = null;
   aonRestarting = false;
   try{ if(aonRecog){ aonRecog.abort(); aonRecog = null; }}catch(e){}
+  try{ if(typeof stopCloudSTT === 'function') stopCloudSTT(); }catch(_){}
   setAonState('off');
   setAonText('「天の声、家族／本人／バイタル／病院」で開始、「天の声終了」または「会話停止」で終了');
   setAonToggle(false);
   if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(false);
   if(wasGated){ try{ playTenChime(false); }catch(_){} }
+}
+
+// ============================================================
+// クラウド音声認識（iOS等のブラウザSTT非対応端末向け・Groq Whisper）
+// 設定の「☁ クラウド音声認識」ONで使用。VAD（無音検出）で自動録音→送信
+// ============================================================
+
+// 音声入力を共通処理（既存パイプラインへ）— ブラウザSR/クラウドSTT 両方から呼ぶ
+function processVoiceTranscript(rawText){
+  let final = fixHomophones(rawText);
+  setAonText(final);
+  const trimmed = final.trim();
+  if(!trimmed) return;
+  if(isSpeaking) return;
+  // ① 終了コマンド
+  if(/(天の声|てんのこえ|テンノコエ).{0,4}終了|会話\s*停止/.test(trimmed)){
+    aonGate = false;
+    aonGateRole = null;
+    if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(false);
+    try{ playTenChime(false); }catch(_){}
+    addSys('🔚 天の声 OFF（待機モードへ戻りました）');
+    setAonState('listening');
+    setAonText('待機中... 「天の声、〇〇」と話してください');
+    toast('🔇 天の声を終了');
+    return;
+  }
+  // ② 天の声ウェイクワード
+  const tenRe = /(天の声|てんのこえ|テンノコエ)/;
+  const hasTen = tenRe.test(trimmed);
+  if(hasTen){
+    let newRole = null;
+    if(/家族|目撃/.test(trimmed)) newRole = 'family';
+    else if(/本人|患者/.test(trimmed)) newRole = 'patient';
+    else if(/病院|交渉|搬送先|受け入れ/.test(trimmed)) newRole = 'hospital';
+    else if(/医師|医者|ドクター/.test(trimmed)) newRole = 'doctor';
+    else if(/バイタル|血圧|脈拍|心拍|spo2|spо2|呼吸数|gcs|意識レベル|体温|測定/i.test(trimmed)) newRole = 'vital';
+    if(newRole){
+      aonGate = true;
+      aonGateRole = newRole;
+      if(typeof setTenManualBtnUI === 'function') setTenManualBtnUI(true);
+      try{ playTenChime(true); }catch(_){}
+      if(newRole !== currentRole){ selRole(newRole); }
+      addSys('🎯 天の声 ON：' + roleLabels[newRole]);
+      if(newRole === 'hospital'){
+        setAonText('📞 病院交渉画面を開きました — 科目選択→通話開始へ');
+        return;
+      }
+      aonGateQuietUntil = Date.now() + 4000;
+      setAonState('wake-detected');
+      setAonText('🟢 ' + roleLabels[newRole] + ' モード — ご質問をどうぞ（自動応答はしません）');
+      return;
+    }
+    setAonText('「天の声、家族／本人／バイタル／病院」と続けてください');
+    return;
+  }
+  // ③ ゲートが閉じている → 雑談無視
+  if(!aonGate){
+    setAonText('（天の声以外は無視中）: ' + trimmed.slice(0,30));
+    return;
+  }
+  // ④ ゲートON：継続会話として送信
+  if(trimmed.length < 2) return;
+  if(Date.now() < aonGateQuietUntil){
+    setAonText('（切替直後の待機中… ご質問をお待ちしています）');
+    return;
+  }
+  setAonState('wake-detected');
+  setAonText('送信: "' + trimmed + '"');
+  unlockAudio();
+  document.getElementById('txtIn').value = trimmed;
+  setTimeout(()=>{ send(); }, 200);
+}
+
+// クラウドSTT 設定判定
+function isCloudSttEnabled(){
+  const cs = document.getElementById('cloudSttMode');
+  return !!(cs && cs.checked);
+}
+
+// クラウドSTT トグル：訓練中なら待受を再起動
+function onCloudSttToggle(checked){
+  localStorage.setItem('emCloudStt', checked ? '1' : '0');
+  if(alwaysOn){
+    stopAlwaysOn();
+    setTimeout(startAlwaysOn, 200);
+  }
+  if(typeof toast === 'function') toast(checked ? '☁ クラウド音声認識を有効化（Groq Whisper）' : '🎙 ブラウザ音声認識に戻しました');
+}
+
+// クラウドSTT 内部状態
+let cloudSTT_active = false;
+let cloudSTT_stream = null;
+let cloudSTT_audioCtx = null;
+let cloudSTT_analyser = null;
+let cloudSTT_mediaRec = null;
+let cloudSTT_chunks = [];
+let cloudSTT_lastSoundT = 0;
+let cloudSTT_recStartT = 0;
+let cloudSTT_inSpeech = false;
+let cloudSTT_vadRAF = null;
+const CLOUDSTT_VAD_THRESHOLD = 0.018;   // RMSしきい値（発話検出）
+const CLOUDSTT_VAD_SILENCE_MS = 900;    // 無音継続でストップ
+const CLOUDSTT_MAX_REC_MS = 30000;      // 1発話の上限
+const CLOUDSTT_MIN_REC_MS = 350;        // 短すぎる発話はノイズ扱い
+
+async function startCloudSTT(){
+  if(cloudSTT_active) return;
+  const gk = localStorage.getItem('emkey_groq');
+  if(!gk){
+    if(typeof toast === 'function') toast('Groqキー未設定：APIプロバイダ欄でGroqキー（gsk_...）を保存してください（無料）');
+    setAonText('Groqキーを保存してから再度ONにしてください');
+    stopAlwaysOn();
+    return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true}});
+    cloudSTT_stream = stream;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    if(ctx.state === 'suspended') await ctx.resume();
+    cloudSTT_audioCtx = ctx;
+    const src = ctx.createMediaStreamSource(stream);
+    const an = ctx.createAnalyser();
+    an.fftSize = 1024;
+    src.connect(an);
+    cloudSTT_analyser = an;
+    cloudSTT_active = true;
+    setAonState('listening');
+    setAonText('☁ クラウドSTT 待機中... 話すと自動録音→Whisperで文字起こし');
+    cloudSttVadLoop();
+  }catch(e){
+    if(typeof toast === 'function') toast('マイク許可エラー: ' + (e.message||e));
+    cloudSTT_active = false;
+    stopAlwaysOn();
+  }
+}
+
+function cloudSttVadLoop(){
+  if(!cloudSTT_active || !cloudSTT_analyser){ return; }
+  // 一時停止条件（TTS再生中・手動録音中・通話録音中）
+  const paused = (typeof isSpeaking !== 'undefined' && isSpeaking)
+              || (typeof isRec !== 'undefined' && isRec)
+              || (typeof callState !== 'undefined' && callState && callState.recording);
+  if(paused){
+    if(cloudSTT_inSpeech && cloudSTT_mediaRec){
+      try{ cloudSTT_mediaRec.stop(); }catch(_){}
+      cloudSTT_mediaRec = null;
+      cloudSTT_chunks = [];
+      cloudSTT_inSpeech = false;
+    }
+    cloudSTT_vadRAF = requestAnimationFrame(cloudSttVadLoop);
+    return;
+  }
+  const buf = new Float32Array(cloudSTT_analyser.fftSize);
+  cloudSTT_analyser.getFloatTimeDomainData(buf);
+  let sumSq = 0;
+  for(let i=0;i<buf.length;i++) sumSq += buf[i]*buf[i];
+  const rms = Math.sqrt(sumSq/buf.length);
+  const now = Date.now();
+  if(rms > CLOUDSTT_VAD_THRESHOLD){
+    if(!cloudSTT_inSpeech){
+      cloudSTT_inSpeech = true;
+      cloudSTT_recStartT = now;
+      cloudSttStartRecording();
+    }
+    cloudSTT_lastSoundT = now;
+  } else if(cloudSTT_inSpeech){
+    const dur = now - cloudSTT_recStartT;
+    const silence = now - cloudSTT_lastSoundT;
+    if((silence > CLOUDSTT_VAD_SILENCE_MS && dur > CLOUDSTT_MIN_REC_MS) || dur > CLOUDSTT_MAX_REC_MS){
+      cloudSTT_inSpeech = false;
+      cloudSttStopAndSend();
+    }
+  }
+  cloudSTT_vadRAF = requestAnimationFrame(cloudSttVadLoop);
+}
+
+function cloudSttStartRecording(){
+  if(cloudSTT_mediaRec || !cloudSTT_stream) return;
+  let opts = {};
+  if(typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported){
+    if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) opts = {mimeType:'audio/webm;codecs=opus'};
+    else if(MediaRecorder.isTypeSupported('audio/webm')) opts = {mimeType:'audio/webm'};
+    else if(MediaRecorder.isTypeSupported('audio/mp4')) opts = {mimeType:'audio/mp4'};
+  }
+  try{
+    const mr = new MediaRecorder(cloudSTT_stream, opts);
+    cloudSTT_chunks = [];
+    mr.ondataavailable = e=>{ if(e.data && e.data.size>0) cloudSTT_chunks.push(e.data); };
+    mr.start();
+    cloudSTT_mediaRec = mr;
+    setAonState('listening');
+    setAonText('🎤 録音中...');
+  }catch(e){
+    console.warn('MediaRecorder start err', e);
+  }
+}
+
+async function cloudSttStopAndSend(){
+  if(!cloudSTT_mediaRec) return;
+  const mr = cloudSTT_mediaRec;
+  cloudSTT_mediaRec = null;
+  const done = new Promise(res => mr.addEventListener('stop', res, {once:true}));
+  try{ mr.stop(); }catch(_){}
+  await done;
+  const mimeType = mr.mimeType || 'audio/webm';
+  const blob = new Blob(cloudSTT_chunks, {type: mimeType});
+  cloudSTT_chunks = [];
+  if(blob.size < 800){
+    setAonText('（聞き取れず）☁ 待機中...');
+    return;
+  }
+  setAonText('🔄 文字起こし中...');
+  try{
+    const text = await transcribeViaGroqWhisper(blob, mimeType);
+    if(!text || !text.trim()){
+      setAonText('（聞き取れず）☁ 待機中...');
+      return;
+    }
+    processVoiceTranscript(text.trim());
+  }catch(e){
+    setAonText('❌ STT失敗: ' + (e.message||e));
+    console.warn('cloudSTT err', e);
+  }
+}
+
+async function transcribeViaGroqWhisper(blob, mimeType){
+  const key = localStorage.getItem('emkey_groq');
+  if(!key) throw new Error('Groqキー未設定');
+  const ext = mimeType.includes('mp4') ? 'mp4' : (mimeType.includes('ogg') ? 'ogg' : 'webm');
+  const fd = new FormData();
+  fd.append('file', blob, 'rec.' + ext);
+  fd.append('model', 'whisper-large-v3-turbo');
+  fd.append('language', 'ja');
+  fd.append('response_format', 'json');
+  const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + key },
+    body: fd,
+  });
+  if(!r.ok){
+    const t = await r.text();
+    throw new Error('Groq STT ' + r.status + ': ' + t.slice(0,160));
+  }
+  const data = await r.json();
+  return data.text || '';
+}
+
+function stopCloudSTT(){
+  cloudSTT_active = false;
+  if(cloudSTT_vadRAF){ try{ cancelAnimationFrame(cloudSTT_vadRAF); }catch(_){} cloudSTT_vadRAF = null; }
+  if(cloudSTT_mediaRec){
+    try{ cloudSTT_mediaRec.stop(); }catch(_){}
+    cloudSTT_mediaRec = null;
+  }
+  cloudSTT_chunks = [];
+  cloudSTT_inSpeech = false;
+  if(cloudSTT_stream){
+    try{ cloudSTT_stream.getTracks().forEach(t=>t.stop()); }catch(_){}
+    cloudSTT_stream = null;
+  }
+  if(cloudSTT_audioCtx){
+    try{ cloudSTT_audioCtx.close(); }catch(_){}
+    cloudSTT_audioCtx = null;
+  }
+  cloudSTT_analyser = null;
 }
 
 function setAonState(state){
